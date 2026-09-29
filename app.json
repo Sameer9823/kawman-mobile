@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "Kawman Field",
+    "slug": "kawman-field",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "kawmanfield",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.kawmanexact.field",
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-location", { "locationWhenInUsePermission": "Kawman Field uses your location to verify field visit check-ins." }],
+      ["expo-image-picker", { "cameraPermission": "Kawman Field uses the camera for visit proof photos and business card scans." }]
+    ],
+    "extra": { "apiUrl": "https://kawman-dashboard.vercel.app" }
+  }
+}
