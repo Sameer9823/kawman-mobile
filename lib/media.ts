@@ -28,7 +28,7 @@ export async function uploadToCloudinary(uri: string): Promise<string> {
   const sig = await request<{ timestamp: number; folder: string; signature: string; apiKey: string; cloudName: string }>(
     '/api/mobile/upload-signature', { method: 'POST', body: '{}' },
   )
-  const form = createFileFormData(uri, 'file', `photo-${Date.now()}.jpg`, 'image/jpeg')
+  const form = createFileFormData(uri, 'file', `photo-${Date.now()}.jpg`)
   appendFormData(form, 'api_key', sig.apiKey)
   appendFormData(form, 'timestamp', sig.timestamp)
   appendFormData(form, 'folder', sig.folder)

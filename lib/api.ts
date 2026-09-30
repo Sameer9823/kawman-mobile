@@ -53,14 +53,15 @@ export class ApiError extends Error {
 }
 
 /**
- * Create a FormData entry from a local file URI using Expo's File API.
- * This is the correct way to upload files in Expo/React Native.
+ * Build a FormData containing one local file.
+ * NOTE: expo-file-system's `File` constructor takes path SEGMENTS only, never an
+ * options object (passing `{ name, type }` crashes with "charAt of undefined").
+ * The upload filename goes in FormData.append's 3rd argument; the MIME type is
+ * derived from the file extension (our images are always re-encoded to .jpg).
  */
-export function createFileFormData(uri: string, fieldName = 'file', fileName = `upload-${Date.now()}.jpg`, mimeType = 'image/jpeg'): FormData {
+export function createFileFormData(uri: string, fieldName = 'file', fileName = `upload-${Date.now()}.jpg`): FormData {
   const form = new FormData()
-  // Expo's File expects: new File(uri, { name, type })
-  // @ts-expect-error - Expo File constructor types may differ
-  form.append(fieldName, new File(uri, { name: fileName, type: mimeType }))
+  form.append(fieldName, new File(uri), fileName)
   return form
 }
 
@@ -162,7 +163,7 @@ export const stopLocation = () => request('/api/field-sales/live-location', { me
 
 /** Business card OCR — uses the dashboard's existing AI scan endpoint. */
 export async function scanCard(uri: string): Promise<ScannedCard> {
-  const form = createFileFormData(uri, 'file', 'card.jpg', 'image/jpeg')
+  const form = createFileFormData(uri, 'file', 'card.jpg')
   const r = await request<{ contact: ScannedCard }>('/api/contacts/scan', { method: 'POST', body: form })
   return r.contact
 }
