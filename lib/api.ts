@@ -141,11 +141,13 @@ export const submitReport = (id: string, b: {
   purpose: string; discussion: string; nextSteps: string; requirements?: string; competitorInfo?: string; customerFeedback?: string
 }) => post(`/api/mobile/visits/${id}/report`, b)
 
-export const saveContact = (c: Partial<ScannedCard>) =>
-  post<{ id: string }>('/api/mobile/contacts', {
-    name: c.name ?? '', company: c.company ?? '', designation: c.designation ?? '', email: c.email ?? '',
-    phone: c.phone ?? '', mobile: c.mobile ?? '', address: c.address ?? '',
+export const saveContact = (c: Partial<ScannedCard>) => {
+  const v = (s?: string) => (!s || s.trim() === '-' ? '' : s.trim())
+  return post<{ id: string }>('/api/mobile/contacts', {
+    name: v(c.name), company: v(c.company), designation: v(c.designation), email: v(c.email),
+    phone: v(c.phone), mobile: v(c.mobile), address: v(c.address),
   })
+}
 
 export const pingLocation = (b: { latitude: number; longitude: number; accuracy?: number; heading?: number; speed?: number }) =>
   post('/api/field-sales/live-location', b)
