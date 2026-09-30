@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, KeyboardAvoidingView, Platform, Text, View } from 'react-native'
+import { KeyboardAvoidingView, Platform, Text, View } from 'react-native'
 import { Button, Field, colors, s } from '../lib/ui'
 import { signIn } from '../lib/api'
 import { markSignedIn } from '../lib/auth-store'
@@ -24,6 +24,8 @@ export default function Login() {
         friendly = 'Unable to sign in. Server configuration issue — please contact support.'
       } else if (msg.includes('401') || msg.includes('Unauthorized')) {
         friendly = 'Invalid email or password.'
+      } else if (msg.includes('403')) {
+        friendly = 'The server blocked the sign-in. Please contact support.'
       } else if (msg.includes('429') || msg.includes('Too many')) {
         friendly = 'Too many attempts. Please wait a minute.'
       } else if (msg.includes('network') || msg.includes('Network')) {

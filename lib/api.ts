@@ -6,8 +6,6 @@ export const API_URL: string = (
   process.env.EXPO_PUBLIC_API_URL ?? (Constants.expoConfig?.extra?.apiUrl as string) ?? 'https://kawman-dashboard.vercel.app'
 ).replace(/\/+$/, '')
 
-const ORIGIN = new URL(API_URL).origin
-
 const TOKEN_KEY = 'kf_token'
 let token: string | null = null
 let onUnauthorized: (() => void) | null = null
@@ -23,7 +21,7 @@ export async function loadToken() {
 export async function signIn(email: string, password: string) {
   const res = await fetch(`${API_URL}/api/auth/sign-in/email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
   })
   const j = await res.json().catch(() => ({}))
@@ -78,7 +76,6 @@ export function appendFormData(form: FormData, key: string, value: string | numb
 
 export async function request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) }
-  headers.Origin = ORIGIN
   if (token) headers.Authorization = `Bearer ${token}`
 
   // Do NOT set Content-Type for FormData — the browser/Expo will set it with the correct boundary.
@@ -126,8 +123,15 @@ export interface ScannedCard {
 }
 
 // ---- Endpoints ----
-export const getVisits = (scope: 'today' | 'upcoming' | 'all') =>
-  request<{ visits: Visit[] }>(`/api/mobile/visits?scope=${scope}`).then((r) => r.visits)
+export const getVisits = (scope: 'today' | 'upcoming' | 'all', from?: string, to?: string) => {
+  const params = [`scope=${encodeURIComponent(scope)}`]
+  if (from) params.push(`from=${encodeURIComponent(from)}`)
+  if (to) params.push(`to=${encodeURIComponent(to)}`)
+  return request<{ visits: Visit[] }>(`/api/mobile/visits?${params.join('&')}`).then((r) => r.visits)
+}
+
+export const getVisit = (id: string) =>
+  request<{ visit: Visit }>(`/api/mobile/visits/${id}`).then((r) => r.visit)
 
 export const createVisit = (b: {
   title: string; purpose: string; scheduledAt: string; company?: string; contactName?: string
@@ -144,11 +148,13 @@ export const submitReport = (id: string, b: {
   purpose: string; discussion: string; nextSteps: string; requirements?: string; competitorInfo?: string; customerFeedback?: string
 }) => post(`/api/mobile/visits/${id}/report`, b)
 
-export const saveContact = (c: Partial<ScannedCard>) =>
-  post<{ id: string }>('/api/mobile/contacts', {
-    name: c.name ?? '', company: c.company ?? '', designation: c.designation ?? '', email: c.email ?? '',
-    phone: c.phone ?? '', mobile: c.mobile ?? '', address: c.address ?? '',
+export const saveContact = (c: Partial<ScannedCard>) => {
+  const v = (s?: string) => (!s || s.trim() === '-' ? '' : s.trim())
+  return post<{ id: string }>('/api/mobile/contacts', {
+    name: v(c.name), company: v(c.company), designation: v(c.designation), email: v(c.email),
+    phone: v(c.phone), mobile: v(c.mobile), address: v(c.address),
   })
+}
 
 export const pingLocation = (b: { latitude: number; longitude: number; accuracy?: number; heading?: number; speed?: number }) =>
   post('/api/field-sales/live-location', b)

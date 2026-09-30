@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { Alert, Image, ScrollView, Text, View } from 'react-native'
 import { useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { ApiError, checkIn, getVisits, setVisitStatus, submitReport, Visit, VisitStatus } from '../../lib/api'
+import { ApiError, checkIn, getVisit, setVisitStatus, submitReport, Visit, VisitStatus } from '../../lib/api'
 import { getFix } from '../../lib/location'
 import { compress, takePhoto, uploadToCloudinary } from '../../lib/media'
 import { Button, Card, Field, colors, s } from '../../lib/ui'
@@ -18,14 +18,15 @@ export default function VisitDetail() {
     competitorInfo: '', customerFeedback: '',
   })
   const [errs, setErrs] = useState<Record<string, string>>({})
+  const [error, setError] = useState<string | null>(null)
 
   const load = useCallback(async () => {
-    const all = await getVisits('all')
-    const v = all.find((x) => x.id === id) ?? null
+    setError(null)
+    const v = await getVisit(id)
     setVisit(v)
-    if (v) setRep((r) => (r.purpose ? r : { ...r, purpose: v.purpose }))
+    setRep((r) => (r.purpose ? r : { ...r, purpose: v.purpose }))
   }, [id])
-  useFocusEffect(useCallback(() => { load().catch(() => {}) }, [load]))
+  useFocusEffect(useCallback(() => { load().catch((e) => setError(e instanceof Error ? e.message : 'Failed to load visit')) }, [load]))
 
   const run = async (key: string, fn: () => Promise<void>) => {
     setBusy(key)
@@ -65,6 +66,14 @@ export default function VisitDetail() {
     }
   })
 
+  if (!visit && error) {
+    return (
+      <View style={[s.screen, s.pad]}>
+        <Text style={{ color: colors.danger, marginBottom: 16 }}>{error}</Text>
+        <Button title="Retry" onPress={() => load()} />
+      </View>
+    )
+  }
   if (!visit) return <View style={s.screen}><Text style={[s.sub, { padding: 20 }]}>Loading…</Text></View>
   const done = visit.status === 'COMPLETED' || visit.status === 'CANCELLED'
 

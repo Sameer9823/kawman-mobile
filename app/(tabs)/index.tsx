@@ -15,7 +15,17 @@ export default function Visits() {
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
-    try { setVisits(await getVisits(scope)) } catch (e) { setError(e instanceof Error ? e.message : 'Failed to load') }
+    let from: string | undefined
+    let to: string | undefined
+    if (scope === 'today' || scope === 'upcoming') {
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+      const end = new Date(start)
+      end.setDate(end.getDate() + 1)
+      from = start.toISOString()
+      to = end.toISOString()
+    }
+    try { setVisits(await getVisits(scope, from, to)) } catch (e) { setError(e instanceof Error ? e.message : 'Failed to load') }
     finally { setLoading(false) }
   }, [scope])
 

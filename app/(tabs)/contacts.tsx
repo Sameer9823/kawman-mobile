@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Alert, Image, ScrollView, Text, View, ActivityIndicator } from 'react-native'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useState } from 'react'
+import { Alert, Image, ScrollView, Text, View } from 'react-native'
 import { ApiError, saveContact, scanCard, ScannedCard } from '../../lib/api'
 import { compress, pickFromGallery, takePhoto } from '../../lib/media'
-import { Button, Card, Field, colors, s } from '../../lib/ui'
+import { Button, Field, colors, s } from '../../lib/ui'
 
 const clean = (v?: string) => (!v || v === '-' ? '' : v)
 
@@ -16,7 +15,6 @@ const FIELDS: [keyof ScannedCard, string, object?][] = [
 ]
 
 export default function Contacts() {
-  const router = useRouter()
   const [uri, setUri] = useState<string | null>(null)
   const [card, setCard] = useState<ScannedCard | null>(null)
   const [busy, setBusy] = useState<'scan' | 'save' | null>(null)
@@ -49,6 +47,12 @@ export default function Contacts() {
   async function save() {
     if (!card) return
     setBusy('save'); setErrs({})
+    const v = (s?: string) => (!s || s.trim() === '-' ? '' : s.trim())
+    if (v(card.name).length < 2) {
+      setErrs({ name: 'Name is required' })
+      setBusy(null)
+      return
+    }
     try {
       await saveContact(card)
       Alert.alert('Saved', `${card.name !== '-' ? card.name : 'Contact'} was added to Contacts.`)
@@ -67,11 +71,6 @@ export default function Contacts() {
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
-      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-        <Button title="New Contact" onPress={() => {}} />
-        <Button title="Scan Business Card" variant="ghost" onPress={() => capture(false)} disabled={busy === 'scan'} />
-      </View>
-
       {!card && (
         <>
           <Text style={[s.sub, { marginBottom: 16 }]}>Photograph a business card flat, in good light. The details are read for you and you can correct them before saving.</Text>

@@ -7,28 +7,24 @@ Expo / React Native app for field-sales reps. Talks to the existing
 check-in with camera photo + GPS · status updates · visit report ·
 business card scanner (AI OCR, edit, save to Contacts) · on-duty live location.
 
-## 1. Apply the server patch first
-In the `kawman-dashboard` repo:
-
-    git am kawman-dashboard-mobile-api.patch   # or: git apply
-    npm run typecheck && npm test
-
-What it adds: better-auth `bearer` plugin, proxy accepts `Authorization: Bearer`
-on `/api/*`, and `/api/mobile/*` routes (me, visits, check-in, status, report,
-upload-signature, contacts). No database migration. Deploy to Vercel.
-
-Vercel env that must already exist for the features to work:
-`CLOUDINARY_*` (photos) and `OPENAI_API_KEY` or `GOOGLE_GENERATIVE_AI_API_KEY` (card scan).
-
-## 2. Run the app
+## 1. Run the app
     npm install
     npx expo install --fix        # aligns versions with your Expo SDK
     echo EXPO_PUBLIC_API_URL=https://kawman-dashboard.vercel.app > .env
     npx expo start                # scan QR with a development build / Expo Go
 
-## 3. Build an APK to install on phones
+## 2. Build an APK to install on phones
     npm i -g eas-cli && eas login
     eas build -p android --profile preview      # gives an installable .apk link
+
+## Testing
+Check-in (and on-duty live-location pings) are rejected on the Android emulator
+and on any phone that has a mock-location app enabled. In both cases the app
+surfaces **"Mock location detected"** and will not record the visit — there is no
+bypass. The server additionally rejects any request sent with `mocked: true`.
+
+To test check-in end-to-end, use a **real Android phone** with
+`Settings > Developer options > Select mock location app` set to **none**.
 
 ## Notes
 - Mock-location: the app blocks check-in/live pings when Android reports a mock
@@ -44,4 +40,4 @@ Vercel env that must already exist for the features to work:
   `trustedOrigins` in `src/lib/auth.ts`.
 - TODO on server: `/api/mobile/visits/[id]/report` saves the VisitReport but does
   not yet append to the rep's DailyReport like the web action does (that logic
-  is inside a Server Action; extract it to a service and call from both).
+  is inside a Server Action; extract it to a service and call it from both).
