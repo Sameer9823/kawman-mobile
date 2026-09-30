@@ -17,7 +17,10 @@ export default function Profile() {
   }, [])
 
   async function toggle(v: boolean) {
-    try { v ? await startDuty() : await stopDuty() } catch (e) { Alert.alert('Location', e instanceof Error ? e.message : 'Failed') }
+    try {
+      if (v) await startDuty()
+      else await stopDuty()
+    } catch (e) { Alert.alert('Location', e instanceof Error ? e.message : 'Failed') }
   }
 
   return (

@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Alert, Image, ScrollView, Text, View, ActivityIndicator } from 'react-native'
-import { useFocusEffect, useRouter } from 'expo-router'
+import { useState } from 'react'
+import { Alert, Image, ScrollView, Text, View } from 'react-native'
 import { ApiError, saveContact, scanCard, ScannedCard } from '../../lib/api'
 import { compress, pickFromGallery, takePhoto } from '../../lib/media'
-import { Button, Card, Field, colors, s } from '../../lib/ui'
+import { Button, Field, colors, s } from '../../lib/ui'
 
 const clean = (v?: string) => (!v || v === '-' ? '' : v)
 
@@ -16,7 +15,6 @@ const FIELDS: [keyof ScannedCard, string, object?][] = [
 ]
 
 export default function Contacts() {
-  const router = useRouter()
   const [uri, setUri] = useState<string | null>(null)
   const [card, setCard] = useState<ScannedCard | null>(null)
   const [busy, setBusy] = useState<'scan' | 'save' | null>(null)
