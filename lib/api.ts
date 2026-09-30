@@ -6,8 +6,6 @@ export const API_URL: string = (
   process.env.EXPO_PUBLIC_API_URL ?? (Constants.expoConfig?.extra?.apiUrl as string) ?? 'https://kawman-dashboard.vercel.app'
 ).replace(/\/+$/, '')
 
-const ORIGIN = new URL(API_URL).origin
-
 const TOKEN_KEY = 'kf_token'
 let token: string | null = null
 let onUnauthorized: (() => void) | null = null
@@ -23,7 +21,7 @@ export async function loadToken() {
 export async function signIn(email: string, password: string) {
   const res = await fetch(`${API_URL}/api/auth/sign-in/email`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: ORIGIN },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
   })
   const j = await res.json().catch(() => ({}))
@@ -78,7 +76,6 @@ export function appendFormData(form: FormData, key: string, value: string | numb
 
 export async function request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { ...(init.headers as Record<string, string>) }
-  headers.Origin = ORIGIN
   if (token) headers.Authorization = `Bearer ${token}`
 
   // Do NOT set Content-Type for FormData — the browser/Expo will set it with the correct boundary.
