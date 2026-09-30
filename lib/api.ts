@@ -126,6 +126,9 @@ export interface ScannedCard {
 export const getVisits = (scope: 'today' | 'upcoming' | 'all') =>
   request<{ visits: Visit[] }>(`/api/mobile/visits?scope=${scope}`).then((r) => r.visits)
 
+export const getVisit = (id: string) =>
+  request<{ visit: Visit }>(`/api/mobile/visits/${id}`).then((r) => r.visit)
+
 export const createVisit = (b: {
   title: string; purpose: string; scheduledAt: string; company?: string; contactName?: string
   contactMobile?: string; contactEmail?: string; address?: string; latitude?: number; longitude?: number
