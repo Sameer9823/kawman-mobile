@@ -123,8 +123,12 @@ export interface ScannedCard {
 }
 
 // ---- Endpoints ----
-export const getVisits = (scope: 'today' | 'upcoming' | 'all') =>
-  request<{ visits: Visit[] }>(`/api/mobile/visits?scope=${scope}`).then((r) => r.visits)
+export const getVisits = (scope: 'today' | 'upcoming' | 'all', from?: string, to?: string) => {
+  const params = [`scope=${encodeURIComponent(scope)}`]
+  if (from) params.push(`from=${encodeURIComponent(from)}`)
+  if (to) params.push(`to=${encodeURIComponent(to)}`)
+  return request<{ visits: Visit[] }>(`/api/mobile/visits?${params.join('&')}`).then((r) => r.visits)
+}
 
 export const getVisit = (id: string) =>
   request<{ visit: Visit }>(`/api/mobile/visits/${id}`).then((r) => r.visit)
