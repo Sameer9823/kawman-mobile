@@ -8,14 +8,37 @@
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.kawmanexact.field",
-      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      ["expo-location", { "locationWhenInUsePermission": "Kawman Field uses your location to verify field visit check-ins." }],
-      ["expo-image-picker", { "cameraPermission": "Kawman Field uses the camera for visit proof photos and business card scans." }]
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Kawman Field uses your location to verify field visit check-ins."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Kawman Field uses the camera for visit proof photos and business card scans."
+        }
+      ]
     ],
-    "extra": { "apiUrl": "https://kawman-dashboard.vercel.app" }
+    "extra": {
+      "apiUrl": "https://kawman-dashboard.vercel.app",
+      "router": {},
+      "eas": {
+        "projectId": "f6e6d04d-5769-4787-b666-f03f72288de5"
+      }
+    }
   }
 }

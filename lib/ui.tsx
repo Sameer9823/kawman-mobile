@@ -1,16 +1,16 @@
 import React from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native'
 
 export const colors = { bg: '#f6f7f9', card: '#fff', text: '#111827', sub: '#6b7280', primary: '#0f766e', danger: '#b91c1c', border: '#e5e7eb' }
 
-export function Button({ title, onPress, loading, variant = 'primary', disabled }: {
-  title: string; onPress: () => void; loading?: boolean; variant?: 'primary' | 'ghost' | 'danger'; disabled?: boolean
+export function Button({ title, onPress, loading, variant = 'primary', disabled, style }: {
+  title: string; onPress: () => void; loading?: boolean; variant?: 'primary' | 'ghost' | 'danger'; disabled?: boolean; style?: ViewStyle
 }) {
   const bg = variant === 'primary' ? colors.primary : variant === 'danger' ? colors.danger : 'transparent'
   const fg = variant === 'ghost' ? colors.primary : '#fff'
   return (
     <Pressable onPress={onPress} disabled={loading || disabled}
-      style={[s.btn, { backgroundColor: bg, opacity: loading || disabled ? 0.6 : 1, borderWidth: variant === 'ghost' ? 1 : 0, borderColor: colors.primary }]}>
+      style={[s.btn, { backgroundColor: bg, opacity: loading || disabled ? 0.6 : 1, borderWidth: variant === 'ghost' ? 1 : 0, borderColor: colors.primary }, style]}>
       {loading ? <ActivityIndicator color={fg} /> : <Text style={{ color: fg, fontWeight: '600', fontSize: 16 }}>{title}</Text>}
     </Pressable>
   )

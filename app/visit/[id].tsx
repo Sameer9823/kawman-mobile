@@ -13,7 +13,10 @@ export default function VisitDetail() {
   const [photo, setPhoto] = useState<string | null>(null)
   const [notes, setNotes] = useState('')
   const [showReport, setShowReport] = useState(false)
-  const [rep, setRep] = useState({ purpose: '', discussion: '', nextSteps: '', requirements: '', customerFeedback: '' })
+  const [rep, setRep] = useState({
+    purpose: '', discussion: '', nextSteps: '', requirements: '',
+    competitorInfo: '', customerFeedback: '',
+  })
   const [errs, setErrs] = useState<Record<string, string>>({})
 
   const load = useCallback(async () => {
@@ -48,7 +51,12 @@ export default function VisitDetail() {
   const doReport = () => run('report', async () => {
     setErrs({})
     try {
-      await submitReport(id, { ...rep, requirements: rep.requirements || undefined, customerFeedback: rep.customerFeedback || undefined })
+      await submitReport(id, {
+        ...rep,
+        requirements: rep.requirements || undefined,
+        competitorInfo: rep.competitorInfo || undefined,
+        customerFeedback: rep.customerFeedback || undefined,
+      })
       setShowReport(false)
       Alert.alert('Saved', 'Visit report submitted.')
     } catch (e) {
@@ -92,6 +100,7 @@ export default function VisitDetail() {
           <Field label="Purpose *" value={rep.purpose} onChangeText={(v) => setRep({ ...rep, purpose: v })} error={errs.purpose} />
           <Field label="What was discussed * (min 10 chars)" multiline value={rep.discussion} onChangeText={(v) => setRep({ ...rep, discussion: v })} error={errs.discussion} />
           <Field label="Requirements" multiline value={rep.requirements} onChangeText={(v) => setRep({ ...rep, requirements: v })} />
+          <Field label="Competitor info" multiline value={rep.competitorInfo} onChangeText={(v) => setRep({ ...rep, competitorInfo: v })} />
           <Field label="Customer feedback" multiline value={rep.customerFeedback} onChangeText={(v) => setRep({ ...rep, customerFeedback: v })} />
           <Field label="Next steps *" multiline value={rep.nextSteps} onChangeText={(v) => setRep({ ...rep, nextSteps: v })} error={errs.nextSteps} />
           <Button title="Submit report" onPress={doReport} loading={busy === 'report'} />
