@@ -146,7 +146,7 @@ export const checkIn = (id: string, b: {
 
 export const submitReport = (id: string, b: {
   purpose: string; discussion: string; nextSteps: string; requirements?: string; competitorInfo?: string; customerFeedback?: string
-}) => post(`/api/mobile/visits/${id}/report`, b)
+}) => post<{ id: string; dailyReportId?: string }>(`/api/mobile/visits/${id}/report`, b)
 
 export const saveContact = (c: Partial<ScannedCard>) => {
   const v = (s?: string) => (!s || s.trim() === '-' ? '' : s.trim())

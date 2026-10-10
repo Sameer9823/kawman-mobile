@@ -52,14 +52,19 @@ export default function VisitDetail() {
   const doReport = () => run('report', async () => {
     setErrs({})
     try {
-      await submitReport(id, {
+      const result = await submitReport(id, {
         ...rep,
         requirements: rep.requirements || undefined,
         competitorInfo: rep.competitorInfo || undefined,
         customerFeedback: rep.customerFeedback || undefined,
       })
       setShowReport(false)
-      Alert.alert('Saved', 'Visit report submitted.')
+      Alert.alert(
+        'Saved',
+        result.dailyReportId
+          ? 'Visit report submitted and added to today\'s daily report.'
+          : 'Visit report submitted.',
+      )
     } catch (e) {
       if (e instanceof ApiError && e.fieldErrors) { setErrs(e.fieldErrors); return }
       throw e
