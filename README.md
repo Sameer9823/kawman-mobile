@@ -1,7 +1,7 @@
 # Kawman Field (Android)
 
-Expo / React Native app for field-sales reps. Talks to the existing
-`kawman-dashboard` backend (same login, same database).
+Expo / React Native app for field-sales reps. Talks to the `kawmanexact-crm`
+dashboard backend (same login, same database).
 
 **Features:** sign in (@kawmanexact.com) · today/upcoming visits · create visit ·
 check-in with camera photo + GPS · status updates · visit report ·
@@ -10,7 +10,7 @@ business card scanner (AI OCR, edit, save to Contacts) · on-duty live location.
 ## 1. Run the app
     npm install
     npx expo install --fix        # aligns versions with your Expo SDK
-    echo EXPO_PUBLIC_API_URL=https://kawman-dashboard.vercel.app > .env
+    echo EXPO_PUBLIC_API_URL=https://kawmanexact-crm.vercel.app > .env
     npx expo start                # scan QR with a development build / Expo Go
 
 ## 2. Build an APK to install on phones
@@ -38,6 +38,3 @@ To test check-in end-to-end, use a **real Android phone** with
   office Wi-Fi can hit it.
 - If sign-in returns an origin/CSRF error, add the app to better-auth
   `trustedOrigins` in `src/lib/auth.ts`.
-- TODO on server: `/api/mobile/visits/[id]/report` saves the VisitReport but does
-  not yet append to the rep's DailyReport like the web action does (that logic
-  is inside a Server Action; extract it to a service and call it from both).

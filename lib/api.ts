@@ -3,7 +3,7 @@ import Constants from 'expo-constants'
 import { File } from 'expo-file-system'
 
 export const API_URL: string = (
-  process.env.EXPO_PUBLIC_API_URL ?? (Constants.expoConfig?.extra?.apiUrl as string) ?? 'https://kawman-dashboard.vercel.app'
+  process.env.EXPO_PUBLIC_API_URL ?? (Constants.expoConfig?.extra?.apiUrl as string) ?? 'https://kawmanexact-crm.vercel.app'
 ).replace(/\/+$/, '')
 
 const TOKEN_KEY = 'kf_token'
