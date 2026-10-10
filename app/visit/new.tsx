@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Alert, Platform, ScrollView } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useLocalSearchParams } from 'expo-router'
 import { ApiError, createVisit } from '../../lib/api'
 import { getFix } from '../../lib/location'
 import { Button, Field, s } from '../../lib/ui'
 
 export default function NewVisit() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ title?: string; company?: string }>()
   const [f, setF] = useState({
-    title: '',
+    title: params.title ?? '',
     purpose: '',
-    company: '',
+    company: params.company ?? '',
     contactName: '',
     contactEmail: '',
     contactMobile: '',

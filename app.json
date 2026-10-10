@@ -30,7 +30,8 @@
           "microphonePermission": false
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "apiUrl": "https://kawmanexact-crm.vercel.app",

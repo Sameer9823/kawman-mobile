@@ -122,6 +122,9 @@ export interface Visit {
   id: string; title: string; purpose: string; status: VisitStatus; scheduledAt: string
   address: string | null; latitude: number | null; longitude: number | null
   company: string | null; contact: string | null; lastCheckInAt: string | null
+  companyId: string | null; contactId: string | null
+  visitReport: { id: string; createdAt: string; nextSteps: string } | null
+  followUps: { id: string; title: string; dueDate: string; status: string }[]
 }
 
 // Matches the dashboard's ScannedContactData interface exactly.
@@ -134,6 +137,74 @@ export interface ScannedCard {
   email: string
   website: string
   address: string
+}
+
+export interface Company {
+  id: string
+  name: string
+}
+
+export interface FollowUp {
+  id: string
+  title: string
+  description: string | null
+  dueDate: string
+  priority: 'LOW' | 'MEDIUM' | 'HIGH'
+  status: 'PENDING' | 'COMPLETED' | 'OVERDUE' | 'CANCELLED'
+  createdAt: string
+  updatedAt: string
+  company: string | null
+  contact: string | null
+  deal: string | null
+  lead: string | null
+}
+
+export type FollowUpStatus = 'PENDING' | 'COMPLETED' | 'OVERDUE' | 'CANCELLED'
+
+export interface MeProfile {
+  id: string
+  name: string | null
+  email: string
+  phone: string | null
+  designation: string | null
+  organizationId: string
+  roles: string[]
+}
+
+export const getMe = () =>
+  request<{ id: string; name: string | null; email: string; phone: string | null; designation: string | null; organizationId: string; roles: string[] }>(
+    '/api/mobile/me',
+  ).then((r) => ({ id: r.id, name: r.name, email: r.email, phone: r.phone, designation: r.designation, organizationId: r.organizationId, roles: r.roles }))
+
+export const updateMe = (body: { name?: string; phone?: string; designation?: string }) =>
+  request<{ user: { id: string; name: string | null; email: string; phone: string | null; designation: string | null } }>('/api/mobile/me', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  }).then((r) => r.user)
+
+export interface DailyReportDraft {
+  tasksCompletedCount: number
+  crmRecordsUpdatedCount: number
+  leadsWorkedOnCount: number
+  filesUploadedCount: number
+  activeWorkingTimeMinutes: number
+  visitReportsCount: number
+  checkInsCount: number
+  existingReport: {
+    id: string
+    workDescription: string | null
+    completedWork: string | null
+    pendingWork: string | null
+    blockers: string | null
+    tomorrowPlan: string | null
+    tasksCompletedCount: number
+    crmRecordsUpdatedCount: number
+    leadsWorkedOnCount: number
+    filesUploadedCount: number
+    activeWorkingTimeMinutes: number
+    status: string
+    updatedAt: string
+  } | null
 }
 
 // ---- Endpoints ----
@@ -163,6 +234,42 @@ export const checkIn = (id: string, b: {
 export const submitReport = (id: string, b: {
   purpose: string; discussion: string; nextSteps: string; requirements?: string; competitorInfo?: string; customerFeedback?: string
 }) => post<{ id: string; dailyReportId?: string }>(`/api/mobile/visits/${id}/report`, b)
+
+export const getCompanies = () =>
+  request<{ companies: Company[] }>('/api/mobile/companies').then((r) => r.companies)
+
+export const getFollowUps = () =>
+  request<{ followUps: FollowUp[] }>('/api/mobile/follow-ups').then((r) => r.followUps)
+
+export const createFollowUp = (b: {
+  title: string
+  description?: string
+  dueDate: string
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH'
+  companyId?: string
+  contactId?: string
+  dealId?: string
+  leadId?: string
+}) => post<{ id: string }>('/api/mobile/follow-ups', b)
+
+export const updateFollowUpStatus = (id: string, status: FollowUpStatus) =>
+  request<{ success: boolean }>(`/api/mobile/follow-ups?id=${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ status }) })
+
+export const getDailyReportDraft = () =>
+  request<{ draft: DailyReportDraft }>('/api/mobile/daily-report').then((r) => r.draft)
+
+export const submitDailyReport = (b: {
+  workDescription?: string
+  completedWork?: string
+  pendingWork?: string
+  blockers?: string
+  tomorrowPlan?: string
+  tasksCompletedCount?: number
+  crmRecordsUpdatedCount?: number
+  leadsWorkedOnCount?: number
+  filesUploadedCount?: number
+  activeWorkingTimeMinutes?: number
+}) => post<{ id: string; status: string; updatedAt: string }>('/api/mobile/daily-report', b)
 
 export const saveContact = (c: Partial<ScannedCard>) => {
   const v = (s?: string) => (!s || s.trim() === '-' ? '' : s.trim())

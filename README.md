@@ -5,7 +5,9 @@ dashboard backend (same login, same database).
 
 **Features:** sign in (@kawmanexact.com) · today/upcoming visits · create visit ·
 check-in with camera photo + GPS · status updates · visit report ·
-business card scanner (AI OCR, edit, save to Contacts) · on-duty live location.
+business card scanner (AI OCR, edit, save to Contacts) · on-duty live location ·
+delete visits · follow-up creation from completed visits · schedule revisits ·
+daily report submission · company dropdown selector · full profile view + edit.
 
 ## 1. Run the app
     npm install
@@ -18,8 +20,10 @@ business card scanner (AI OCR, edit, save to Contacts) · on-duty live location.
     eas build -p android --profile preview      # gives an installable .apk link
 
 ## Testing
-Check-in (and on-duty live-location pings) are rejected on the Android emulator
-and on any phone that has a mock-location app enabled. In both cases the app
+- Follow-ups: tap any follow-up in the Follow-ups tab to open a status picker with
+  PENDING, COMPLETED, OVERDUE, and CANCELLED options. Status is updated manually — it
+  does not auto-complete when tapped.
+- Check-in (and on-duty live-location pings) are rejected on the Android emulator
 surfaces **"Mock location detected"** and will not record the visit — there is no
 bypass. The server additionally rejects any request sent with `mocked: true`.
 
