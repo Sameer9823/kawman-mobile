@@ -154,6 +154,8 @@ export const createVisit = (b: {
 
 export const setVisitStatus = (id: string, status: VisitStatus) => post(`/api/mobile/visits/${id}/status`, { status })
 
+export const deleteVisit = (id: string) => request<{ success: boolean }>(`/api/mobile/visits/${id}`, { method: 'DELETE' })
+
 export const checkIn = (id: string, b: {
   latitude: number; longitude: number; accuracy?: number; mocked?: boolean; notes?: string; photoUrl?: string
 }) => post<{ ok: true }>(`/api/mobile/visits/${id}/check-in`, b)

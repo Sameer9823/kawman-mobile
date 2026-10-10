@@ -29,7 +29,8 @@
           "cameraPermission": "Kawman Field uses the camera for visit proof photos and business card scans.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "apiUrl": "https://kawmanexact-crm.vercel.app",

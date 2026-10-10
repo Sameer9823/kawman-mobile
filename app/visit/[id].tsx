@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react'
 import { Alert, Image, ScrollView, Text, View } from 'react-native'
-import { useFocusEffect, useLocalSearchParams } from 'expo-router'
-import { ApiError, checkIn, getVisit, setVisitStatus, submitReport, Visit, VisitStatus } from '../../lib/api'
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
+import { ApiError, checkIn, deleteVisit, getVisit, setVisitStatus, submitReport, Visit, VisitStatus } from '../../lib/api'
 import { getFix } from '../../lib/location'
 import { compress, takePhoto, uploadToCloudinary } from '../../lib/media'
 import { Button, Card, Field, colors, s } from '../../lib/ui'
 
 export default function VisitDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const router = useRouter()
   const [visit, setVisit] = useState<Visit | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [photo, setPhoto] = useState<string | null>(null)
@@ -36,6 +37,21 @@ export default function VisitDetail() {
   }
 
   const changeStatus = (st: VisitStatus) => run(st, async () => { await setVisitStatus(id, st) })
+
+  const doDelete = () => {
+    Alert.alert('Delete visit', 'Are you sure? This cannot be undone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => run('delete', async () => {
+          await deleteVisit(id)
+          Alert.alert('Deleted', 'Visit removed.')
+          router.back()
+        }),
+      },
+    ])
+  }
 
   const doCheckIn = () => run('checkin', async () => {
     const shot = photo ?? (await takePhoto())
@@ -120,6 +136,8 @@ export default function VisitDetail() {
           <Button title="Submit report" onPress={doReport} loading={busy === 'report'} />
         </Card>
       )}
+
+      <Button title="Delete visit" variant="ghost" onPress={doDelete} loading={busy === 'delete'} />
     </ScrollView>
   )
 }

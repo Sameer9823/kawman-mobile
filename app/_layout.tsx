@@ -1,12 +1,19 @@
 import { useEffect } from 'react'
-import { Stack, useRouter, useSegments } from 'expo-router'
+import { Stack, useRouter, useSegments, SplashScreen } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { useFonts } from 'expo-font'
+import { Ionicons } from '@expo/vector-icons'
 import { initAuth, useAuthState } from '../lib/auth-store'
+
+SplashScreen.preventAutoHideAsync()
+
+const ioniconsFont = Ionicons.font
 
 export default function RootLayout() {
   const { ready, authed } = useAuthState()
   const segments = useSegments()
   const router = useRouter()
+  const [fontsLoaded, fontError] = useFonts(ioniconsFont)
 
   useEffect(() => { initAuth() }, [])
 
@@ -16,6 +23,16 @@ export default function RootLayout() {
     if (!authed && !onLogin) router.replace('/login')
     else if (authed && onLogin) router.replace('/')
   }, [ready, authed, segments, router])
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) {
+      SplashScreen.hideAsync()
+    }
+  }, [fontsLoaded, fontError])
+
+  if (!fontsLoaded && !fontError) {
+    return null
+  }
 
   return (
     <>
