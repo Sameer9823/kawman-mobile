@@ -6,6 +6,11 @@
     "orientation": "portrait",
     "scheme": "kawmanfield",
     "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/logo-header.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fff5f1"
+    },
     "android": {
       "package": "com.kawmanexact.field",
       "permissions": [

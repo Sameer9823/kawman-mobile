@@ -1,7 +1,7 @@
 import React from 'react'
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native'
 
-export const colors = { bg: '#f6f7f9', card: '#fff', text: '#111827', sub: '#6b7280', primary: '#0f766e', danger: '#b91c1c', border: '#e5e7eb' }
+export const colors = { bg: '#f6f7f9', card: '#fff', text: '#111827', sub: '#6b7280', primary: '#603426', dark: '#4a261c', blue: '#0F2A5F', danger: '#b91c1c', border: '#e5e7eb' }
 
 export function Button({ title, onPress, loading, variant = 'primary', disabled, style }: {
   title: string; onPress: () => void; loading?: boolean; variant?: 'primary' | 'ghost' | 'danger'; disabled?: boolean; style?: ViewStyle
