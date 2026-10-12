@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar'
 import { useFonts } from 'expo-font'
 import { Ionicons } from '@expo/vector-icons'
 import { initAuth, useAuthState } from '../lib/auth-store'
+import { setupNotifications, setBannerHandler, clearBannerHandler } from '../lib/notifications'
+import { NotificationBannerHost, showBanner } from '../components/NotificationBanner'
 import CustomSplash from './splash'
 
 SplashScreen.preventAutoHideAsync()
@@ -18,6 +20,17 @@ export default function RootLayout() {
   const [showCustomSplash, setShowCustomSplash] = useState(false)
 
   useEffect(() => { initAuth() }, [])
+
+  // Setup notifications when authenticated
+  useEffect(() => {
+    if (!ready || !authed) return
+    setupNotifications().catch((e) => console.error('Notification setup failed:', e))
+    // Wire banner handler to dispatch to the in-app banner
+    setBannerHandler((data) => showBanner(data))
+    return () => {
+      clearBannerHandler()
+    }
+  }, [ready, authed])
 
   useEffect(() => {
     if (!fontsLoaded && !fontError) return
@@ -46,10 +59,12 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerTitleStyle: { fontWeight: '700' } }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="login" options={{ headerShown: false }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
         <Stack.Screen name="visit/new" options={{ title: 'New visit', presentation: 'modal' }} />
         <Stack.Screen name="visit/[id]" options={{ title: 'Visit' }} />
         <Stack.Screen name="contacts/scan" options={{ title: 'Scan card', presentation: 'modal' }} />
       </Stack>
+      <NotificationBannerHost />
     </>
   )
 }

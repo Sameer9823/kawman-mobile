@@ -297,6 +297,46 @@ export const submitReport = (id: string, b: {
 export const getFollowUps = () =>
   request<{ followUps: FollowUp[] }>('/api/mobile/follow-ups').then((r) => r.followUps)
 
+export interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  data: Record<string, unknown> | null
+  isRead: boolean
+  createdAt: string
+  readAt: string | null
+  visitId?: string | null
+}
+
+export const getUnreadNotificationCount = () =>
+  request<{ count: number }>('/api/notifications/unread-count').then((r) => r.count)
+
+export const getNotifications = (limit = 20, offset = 0, unreadOnly = false) =>
+  request<{ notifications: Notification[]; total: number; unreadCount: number; hasMore: boolean }>(
+    `/api/notifications?limit=${limit}&offset=${offset}${unreadOnly ? '&unreadOnly=true' : ''}`
+  ).then((r) => r)
+
+export interface DevicePushToken {
+  id: string
+  token: string
+  platform: 'android' | 'ios'
+  deviceName: string | null
+  createdAt: string
+}
+
+export const registerPushToken = (body: { token: string; platform: 'android' | 'ios'; deviceName?: string }) =>
+  post<{ ok: true }>('/api/mobile/push-token', body)
+
+export const unregisterPushToken = (token: string) =>
+  request<{ ok: true }>('/api/mobile/push-token', { method: 'DELETE', body: JSON.stringify({ token }) })
+
+export const markNotificationRead = (notificationId: string) =>
+  request<{ success: boolean }>('/api/notifications', { method: 'PATCH', body: JSON.stringify({ notificationIds: [notificationId] }) })
+
+export const markAllNotificationsRead = () =>
+  request<{ success: boolean }>('/api/notifications', { method: 'PATCH', body: JSON.stringify({ markAll: true }) })
+
 export const createFollowUp = (b: {
   title: string
   description?: string

@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, Text, ScrollView, Alert, Linking, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, Alert, Linking, TouchableOpacity, Switch } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { MeProfile, getMe, signOut } from '../../lib/api'
 import { Card, s, colors, Avatar, Button, SectionHeader, SkeletonList, ErrorState } from '../../lib/ui'
 import { Ionicons } from '@expo/vector-icons'
 import { isOnDuty, startDuty, stopDuty, onDutyChange } from '../../lib/duty'
+import { unregisterPushTokenAsync, stopPollingFallback, checkNotificationPermission } from '../../lib/notifications'
 import { markSignedOut } from '../../lib/auth-store'
 import Constants from 'expo-constants'
 import { storage } from '../../lib/storage'
 
 const DUTY_START_KEY = 'duty-start'
+const SOUND_SETTING_KEY = 'kf_sound_enabled'
 
 export default function Profile() {
   const router = useRouter()
@@ -19,10 +21,24 @@ export default function Profile() {
   const [onDuty, setOnDuty] = useState(isOnDuty())
   const [dutyStart, setDutyStart] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
+  const [playSound, setPlaySound] = useState(true)
 
   useEffect(() => {
-    const id = setInterval(() => setNow(() => Date.now()), 1000)
+    const id = setInterval(() => {
+      setNow(() => Date.now())
+      void checkNotificationPermission().then(({ granted }) => {
+        if (!granted) {
+          // Could show a prompt to the user here
+        }
+      })
+    }, 1000)
     return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    storage.get(SOUND_SETTING_KEY).then((v) => {
+      if (v !== null) setPlaySound(v === '1')
+    })
   }, [])
 
   useEffect(() => {
@@ -71,7 +87,7 @@ export default function Profile() {
   const handleSignOut = () => {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: async () => { await signOut(); markSignedOut(); router.replace('/login') } },
+      { text: 'Sign out', style: 'destructive', onPress: async () => { await signOut(); await unregisterPushTokenAsync(); stopPollingFallback(); markSignedOut(); router.replace('/login') } },
     ])
   }
 
@@ -159,6 +175,33 @@ export default function Profile() {
           <Text style={s.sub}>Device</Text>
           <Text style={{ fontWeight: '600', color: colors.text }}>{Constants?.deviceName ?? '—'}</Text>
         </View>
+      </Card>
+
+      <SectionHeader title="Notifications" icon={<Ionicons name="notifications-outline" size={20} color={colors.primary} />} />
+      <Card style={{ padding: 16, gap: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={{ fontSize: 15, fontWeight: '600', color: colors.text }}>Sound for new assignments</Text>
+            <Text style={s.sub}>Play visit_alert.wav when a notification arrives</Text>
+          </View>
+          <Switch
+            value={playSound}
+            onValueChange={async (v) => {
+              setPlaySound(v)
+              await storage.set(SOUND_SETTING_KEY, v ? '1' : '0')
+            }}
+            trackColor={{ false: colors.border, true: colors.primary }}
+            thumbColor={playSound ? colors.primary : '#fff'}
+          />
+        </View>
+        <TouchableOpacity
+          onPress={() => Linking.openSettings()}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          accessibilityLabel="Open notification settings"
+        >
+          <Ionicons name="open-outline" size={18} color={colors.sub} />
+          <Text style={s.sub}>Notification settings (system)</Text>
+        </TouchableOpacity>
       </Card>
 
       <Button title="Sign out" variant="danger" onPress={handleSignOut} />
