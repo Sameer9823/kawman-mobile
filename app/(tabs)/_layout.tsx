@@ -1,25 +1,52 @@
-import { Tabs } from 'expo-router'
+import React, { useState } from 'react'
+import { Image } from 'react-native'
+import { Tabs, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { colors } from '../../lib/ui'
-import { Image } from 'react-native'
+import { LOGO_HEADER } from '../../lib/brand'
+import { BottomSheet } from '../../components/BottomSheet'
+import { Fab } from '../../components/Fab'
 
 export default function TabsLayout() {
+  const router = useRouter()
+  const [showSheet, setShowSheet] = useState(false)
+
   return (
-    <Tabs screenOptions={{
-      tabBarActiveTintColor: colors.primary,
-      headerTitleStyle: { fontWeight: '700' },
-      headerTitle: () => (
-        <Image
-          source={require('../../assets/logo-header.png')}
-          style={{ width: 120, height: 32, resizeMode: 'contain' }}
-        />
-      ),
-    }}>
-      <Tabs.Screen name="index" options={{ title: 'Visits', tabBarLabel: 'Visits', tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="contacts" options={{ title: 'Contacts', tabBarLabel: 'Contacts', tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="follow-ups" options={{ title: 'Follow-ups', tabBarLabel: 'Follow-ups', tabBarIcon: ({ color, size }) => <Ionicons name="list-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarLabel: 'Reports', tabBarIcon: ({ color, size }) => <Ionicons name="document-text-outline" size={size} color={color} /> }} />
-      <Tabs.Screen name="profile" options={{ title: 'Me', tabBarLabel: 'Me', tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" size={size} color={color} /> }} />
-    </Tabs>
+    <>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: colors.primary,
+          tabBarInactiveTintColor: colors.sub,
+          headerTitleStyle: { fontWeight: '700' },
+          headerTitle: () => (
+            <Image source={LOGO_HEADER} style={{ width: 120, height: 32, resizeMode: 'contain' }} />
+          ),
+          tabBarStyle: {
+            height: 80,
+            paddingBottom: 20,
+            borderTopColor: colors.border,
+          },
+          tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 4 },
+        }}
+      >
+        <Tabs.Screen name="index" options={{ title: 'Home', tabBarLabel: 'Home', tabBarIcon: ({ color, size }) => <Ionicons name="home-outline" size={size} color={color} /> }} />
+        <Tabs.Screen name="visits" options={{ title: 'Visits', tabBarLabel: 'Visits', tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} /> }} />
+        <Tabs.Screen name="follow-ups" options={{ title: 'Follow-ups', tabBarLabel: 'Follow-ups', tabBarIcon: ({ color, size }) => <Ionicons name="list-outline" size={size} color={color} /> }} />
+        <Tabs.Screen name="contacts" options={{ title: 'Contacts', tabBarLabel: 'Contacts', tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" size={size} color={color} /> }} />
+        <Tabs.Screen name="reports" options={{ title: 'Reports', tabBarLabel: 'Reports', tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart-outline" size={size} color={color} /> }} />
+        <Tabs.Screen name="profile" options={{ title: 'Me', tabBarLabel: 'Me', tabBarIcon: ({ color, size }) => <Ionicons name="person-circle-outline" size={size} color={color} /> }} />
+      </Tabs>
+
+      <Fab onPress={() => setShowSheet(true)} />
+
+      <BottomSheet
+        visible={showSheet}
+        onClose={() => setShowSheet(false)}
+        title="Quick action"
+        actions={[
+          { label: 'New visit', onPress: () => { setShowSheet(false); router.push('/visit/new') }, variant: 'primary' },
+        ]}
+      />
+    </>
   )
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Image, Platform, ScrollView, Text, View } from 'react-native'
+import { Alert, Image, Platform, ScrollView, View, Text } from 'react-native'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import {
@@ -8,20 +8,20 @@ import {
   createFollowUp,
   deleteVisit,
   getCompanies,
+  getProducts,
   getVisit,
   setVisitStatus,
   submitReport,
   Visit,
   VisitStatus,
+  Company,
+  Product,
 } from '../../lib/api'
 import { getFix } from '../../lib/location'
 import { compress, takePhoto, uploadToCloudinary } from '../../lib/media'
-import { Button, Card, Field, colors, s } from '../../lib/ui'
-
-export interface Company {
-  id: string
-  name: string
-}
+import { Button, Card, Field, s, colors, StatusChip, SectionHeader, ErrorState } from '../../lib/ui'
+import { Ionicons } from '@expo/vector-icons'
+import * as Haptics from 'expo-haptics'
 
 export default function VisitDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -39,6 +39,7 @@ export default function VisitDetail() {
   const [error, setError] = useState<string | null>(null)
 
   const [companies, setCompanies] = useState<Company[]>([])
+  const [products, setProducts] = useState<Product[]>([])
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const [followUpTitle, setFollowUpTitle] = useState('')
   const [followUpDueDate, setFollowUpDueDate] = useState<Date | null>(null)
@@ -48,14 +49,17 @@ export default function VisitDetail() {
 
   const load = useCallback(async () => {
     setError(null)
-    const v = await getVisit(id)
+    const [v, prods] = await Promise.all([getVisit(id), getProducts(true)])
     setVisit(v)
+    setProducts(prods)
     setRep((r) => (r.purpose ? r : { ...r, purpose: v.purpose }))
     setFollowUpTitle(v.visitReport?.nextSteps ? `Follow up: ${v.visitReport.nextSteps}` : '')
     setSelectedCompanyId(v.companyId)
   }, [id])
 
-  useFocusEffect(useCallback(() => { load().catch((e) => setError(e instanceof Error ? e.message : 'Failed to load visit')) }, [load]))
+  useFocusEffect(useCallback(() => {
+    load().catch((e) => setError(e instanceof Error ? e.message : 'Failed to load visit'))
+  }, [load]))
 
   useEffect(() => {
     getCompanies().then(setCompanies).catch(() => {})
@@ -68,7 +72,10 @@ export default function VisitDetail() {
     finally { setBusy(null) }
   }
 
-  const changeStatus = (st: VisitStatus) => run(st, async () => { await setVisitStatus(id, st) })
+  const changeStatus = (st: VisitStatus) => run(st, async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    await setVisitStatus(id, st)
+  })
 
   const doDelete = () => {
     Alert.alert('Delete visit', 'Are you sure? This cannot be undone.', [
@@ -137,51 +144,92 @@ export default function VisitDetail() {
 
   const doRevisit = () => {
     if (!visit) return
-    const companyName = visit.company ?? ''
-    router.push({ pathname: '/visit/new', params: { revisit: 'true', title: `Revisit: ${visit.title}`, company: companyName } })
+    router.push({ pathname: '/visit/new', params: { revisit: 'true', title: `Revisit: ${visit.title}`, company: visit.company ?? '' } })
   }
+
+  const timelineEvents = [
+    { label: 'Scheduled', date: visit?.scheduledAt, status: 'SCHEDULED' as const },
+    { label: visit?.lastCheckInAt ? 'Checked in' : 'Not checked in', date: visit?.lastCheckInAt ?? undefined, status: visit?.lastCheckInAt ? 'CHECKED_IN' as const : undefined },
+    { label: 'Completed', date: visit?.status === 'COMPLETED' ? (visit?.lastCheckInAt ?? visit?.scheduledAt) : undefined, status: visit?.status === 'COMPLETED' ? 'COMPLETED' as const : undefined },
+  ].filter(Boolean)
 
   if (!visit && error) {
     return (
       <View style={[s.screen, s.pad]}>
-        <Text style={{ color: colors.danger, marginBottom: 16 }}>{error}</Text>
-        <Button title="Retry" onPress={() => load()} />
+        <ErrorState message={error} onRetry={() => load()} />
       </View>
     )
   }
-  if (!visit) return <View style={s.screen}><Text style={[s.sub, { padding: 20 }]}>Loading…</Text></View>
+  if (!visit) return <View style={s.screen}><View style={{ padding: 20 }}><Text style={s.sub}>Loading…</Text></View></View>
 
   const done = visit.status === 'COMPLETED' || visit.status === 'CANCELLED'
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
-      <Card>
-        <Text style={s.h1}>{visit.title}</Text>
-        <Text style={s.sub}>{visit.purpose}</Text>
-        <Text style={{ marginTop: 8, color: colors.text }}>{[visit.company, visit.contact].filter(Boolean).join(' · ')}</Text>
+      <Card style={{ padding: 16, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, flex: 1 }}>{visit.title}</Text>
+          <StatusChip status={visit.status} />
+        </View>
+        {visit.purpose ? <Text style={{ color: colors.text, fontSize: 15, marginBottom: 8 }}>{visit.purpose}</Text> : null}
+        {visit.purposeMeta && (visit.purposeMeta.productIds?.length || visit.purposeMeta.purposeOther) && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ fontWeight: '600', color: colors.text, marginBottom: 4 }}>Products discussed</Text>
+            <Text style={{ color: colors.text, fontSize: 15 }}>
+              {[
+                ...(visit.purposeMeta.productIds?.map((pid) => products.find((p) => p.id === pid)?.label).filter(Boolean) ?? []),
+                visit.purposeMeta.purposeOther ? `Other: ${visit.purposeMeta.purposeOther}` : null,
+              ].filter(Boolean).join(', ') || '—'}
+            </Text>
+          </View>
+        )}
+        {[visit.company, visit.contact].filter(Boolean).length > 0 && (
+          <Text style={[s.sub, { marginBottom: 4 }]}>{[visit.company, visit.contact].filter(Boolean).join(' · ')}</Text>
+        )}
         {visit.address ? <Text style={s.sub}>{visit.address}</Text> : null}
         <Text style={s.sub}>{new Date(visit.scheduledAt).toLocaleString()}</Text>
-        <Text style={{ color: colors.primary, fontWeight: '700', marginTop: 6 }}>{visit.status.replace(/_/g, ' ')}</Text>
-        {visit.lastCheckInAt ? <Text style={s.sub}>Last check-in: {new Date(visit.lastCheckInAt).toLocaleString()}</Text> : null}
+        {visit.lastCheckInAt && (
+          <Text style={[s.sub, { marginTop: 4 }]}>Last check-in: {new Date(visit.lastCheckInAt).toLocaleString()}</Text>
+        )}
+      </Card>
+
+      <SectionHeader title="Timeline" />
+      <Card style={{ padding: 12, marginBottom: 12 }}>
+        {timelineEvents.map((ev, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, borderBottomWidth: i < timelineEvents.length - 1 ? 1 : 0, borderBottomColor: colors.border }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: ev.status ? colors.primary : colors.sub }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '500', color: colors.text }}>{ev.label}</Text>
+              {ev.date && <Text style={s.sub}>{new Date(ev.date).toLocaleString()}</Text>}
+            </View>
+            {ev.status && <StatusChip status={ev.status} />}
+          </View>
+        ))}
       </Card>
 
       {!done && (
         <>
-          <Button title="On the way" variant="ghost" onPress={() => changeStatus('ON_THE_WAY')} loading={busy === 'ON_THE_WAY'} />
-          <Card>
-            <Text style={{ fontWeight: '600', marginBottom: 8 }}>Check in on site</Text>
-            {photo ? <Image source={{ uri: photo }} style={{ height: 160, borderRadius: 8, marginBottom: 8 }} /> : null}
+          <SectionHeader title="Actions" />
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+            <Button title="On the way" variant="secondary" onPress={() => changeStatus('ON_THE_WAY')} loading={busy === 'ON_THE_WAY'} style={{ flex: 1 }} />
+            <Button title="In meeting" variant="secondary" onPress={() => changeStatus('IN_MEETING')} loading={busy === 'IN_MEETING'} style={{ flex: 1 }} />
+          </View>
+
+          <Card style={{ padding: 16, marginBottom: 12 }}>
+            <Text style={{ fontWeight: '600', marginBottom: 8, color: colors.text }}>Check in on site</Text>
+            {photo ? <Image source={{ uri: photo }} style={{ height: 160, borderRadius: 16, marginBottom: 8 }} /> : null}
             <Field label="Notes (optional)" value={notes} onChangeText={setNotes} />
             <Button title={photo ? 'Retry check-in' : 'Take photo & check in'} onPress={doCheckIn} loading={busy === 'checkin'} />
           </Card>
-          <Button title="In meeting" variant="ghost" onPress={() => changeStatus('IN_MEETING')} loading={busy === 'IN_MEETING'} />
+
           <Button title="Mark completed" onPress={() => changeStatus('COMPLETED')} loading={busy === 'COMPLETED'} />
         </>
       )}
 
-      <Button title={showReport ? 'Hide report' : 'Write visit report'} variant="ghost" onPress={() => setShowReport((v) => !v)} />
+      <SectionHeader title="Visit report" icon={<Ionicons name="document-text-outline" size={20} color={colors.primary} />} />
+      <Button title={showReport ? 'Hide report' : 'Write visit report'} variant="secondary" onPress={() => setShowReport((v) => !v)} />
       {showReport && (
-        <Card>
+        <Card style={{ padding: 16, marginBottom: 12 }}>
           <Field label="Purpose *" value={rep.purpose} onChangeText={(v) => setRep({ ...rep, purpose: v })} error={errs.purpose} />
           <Field label="What was discussed * (min 10 chars)" multiline value={rep.discussion} onChangeText={(v) => setRep({ ...rep, discussion: v })} error={errs.discussion} />
           <Field label="Requirements" multiline value={rep.requirements} onChangeText={(v) => setRep({ ...rep, requirements: v })} />
@@ -193,40 +241,30 @@ export default function VisitDetail() {
       )}
 
       {done && visit.followUps.length > 0 && (
-        <Card>
-          <Text style={{ fontWeight: '600', marginBottom: 8 }}>Follow-ups from this visit</Text>
+        <Card style={{ padding: 16, marginBottom: 12 }}>
+          <SectionHeader title="Follow-ups from this visit" />
           {visit.followUps.map((fu) => (
             <View key={fu.id} style={{ marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderColor: colors.border }}>
-              <Text style={{ fontWeight: '500' }}>{fu.title}</Text>
-              <Text style={s.sub}>Due: {new Date(fu.dueDate).toLocaleDateString()} · Status: {fu.status.replace(/_/g, ' ')}</Text>
+              <Text style={{ fontWeight: '500', color: colors.text }}>{fu.title}</Text>
+              <Text style={s.sub}>Due: {new Date(fu.dueDate).toLocaleDateString()} · <StatusChip status={fu.status} />&nbsp;</Text>
             </View>
           ))}
         </Card>
       )}
 
-      {done && (
-        <Card>
-          <Text style={{ fontWeight: '600', marginBottom: 4 }}>Conversion status</Text>
-          {visit.visitReport ? (
-            <Text style={s.sub}>Visit report filed on {new Date(visit.visitReport.createdAt).toLocaleDateString()}.</Text>
-          ) : (
-            <Text style={s.sub}>No visit report filed.</Text>
-          )}
-          {visit.followUps.length > 0 ? (
-            <Text style={{ color: colors.primary, marginTop: 4, fontWeight: '600' }}>
-              Follow-ups created → lead is being pursued.
-            </Text>
-          ) : (
-            <Text style={{ color: colors.text, marginTop: 4 }}>No follow-ups created.</Text>
-          )}
+      {done && visit.visitReport && (
+        <Card style={{ padding: 16, marginBottom: 12 }}>
+          <SectionHeader title="Report filed" />
+          <Text style={s.sub}>Submitted on {new Date(visit.visitReport.createdAt).toLocaleDateString()}</Text>
+          {visit.visitReport.nextSteps && <Text style={{ color: colors.text, marginTop: 4 }}>Next steps: {visit.visitReport.nextSteps}</Text>}
         </Card>
       )}
 
       {done && (
         <>
-          <Button title={showFollowUp ? 'Hide follow-up form' : 'Add follow-up'} variant="ghost" onPress={() => setShowFollowUp((v) => !v)} />
+          <Button title={showFollowUp ? 'Hide follow-up form' : 'Add follow-up'} variant="secondary" onPress={() => setShowFollowUp((v) => !v)} />
           {showFollowUp && (
-            <Card>
+            <Card style={{ padding: 16, marginBottom: 12 }}>
               <Field label="Title *" value={followUpTitle} onChangeText={setFollowUpTitle} />
               <Text style={s.label}>Company</Text>
               <Button
@@ -263,20 +301,14 @@ export default function VisitDetail() {
               <Text style={s.label}>Priority</Text>
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 {(['LOW', 'MEDIUM', 'HIGH'] as const).map((p) => (
-                  <Button
-                    key={p}
-                    title={p}
-                    variant={followUpPriority === p ? 'primary' : 'ghost'}
-                    onPress={() => setFollowUpPriority(p)}
-                    style={{ flex: 1 }}
-                  />
+                  <Button key={p} title={p} variant={followUpPriority === p ? 'primary' : 'ghost'} onPress={() => setFollowUpPriority(p)} style={{ flex: 1 }} />
                 ))}
               </View>
               <Button title="Save follow-up" onPress={doSaveFollowUp} loading={busy === 'followup'} />
             </Card>
           )}
 
-          <Button title="Schedule revisit" variant="ghost" onPress={doRevisit} />
+          <Button title="Schedule revisit" variant="secondary" onPress={doRevisit} />
         </>
       )}
 

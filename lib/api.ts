@@ -21,6 +21,7 @@ export async function loadToken() {
 export async function signIn(email: string, password: string) {
   const res = await fetch(`${API_URL}/api/auth/sign-in/email`, {
     method: 'POST',
+    credentials: 'omit',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
   })
@@ -98,7 +99,7 @@ export async function request<T = unknown>(path: string, init: RequestInit = {})
     headers['Content-Type'] = 'application/json'
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers })
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: 'omit' })
   const data = await res.json().catch(() => ({}))
 
   if (res.status === 401) {
@@ -124,6 +125,7 @@ export interface Visit {
   company: string | null; contact: string | null; lastCheckInAt: string | null
   companyId: string | null; contactId: string | null
   visitReport: { id: string; createdAt: string; nextSteps: string } | null
+  purposeMeta: { productIds?: string[]; purposeOther?: string } | null
   followUps: { id: string; title: string; dueDate: string; status: string }[]
 }
 
@@ -142,6 +144,62 @@ export interface ScannedCard {
 export interface Company {
   id: string
   name: string
+}
+
+export interface Contact {
+  id: string
+  name: string
+  designation: string | null
+  email: string | null
+  phone: string | null
+  mobile: string | null
+  address: string | null
+  company: string | null
+  companyId: string | null
+}
+
+export const getCompanies = () =>
+  request<{ companies: Company[] }>('/api/mobile/companies').then((r) => r.companies)
+
+export interface Product {
+  id: string
+  label: string
+  category: string | null
+}
+
+const PRODUCTS_CACHE_KEY = 'kf_products_cache'
+
+export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
+  if (!forceRefresh) {
+    const cached = await storage.get(PRODUCTS_CACHE_KEY)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (parsed.ts && Date.now() - parsed.ts < 24 * 60 * 60 * 1000) {
+          return parsed.products
+        }
+      } catch { }
+    }
+  }
+  try {
+    const data = await request<{ products: Product[] }>('/api/mobile/products')
+    await storage.set(PRODUCTS_CACHE_KEY, JSON.stringify({ products: data.products, ts: Date.now() }))
+    return data.products
+  } catch (e) {
+    // On error, try to return stale cache
+    const cached = await storage.get(PRODUCTS_CACHE_KEY)
+    if (cached) {
+      try {
+        return JSON.parse(cached).products
+      } catch { }
+    }
+    throw e
+  }
+}
+
+export const getContacts = (search?: string) => {
+  const params = search ? `?search=${encodeURIComponent(search)}` : ''
+  return request<{ contacts: Contact[] }>(`/api/mobile/contacts${params}`).then((r) => r.contacts)
 }
 
 export interface FollowUp {
@@ -221,6 +279,7 @@ export const getVisit = (id: string) =>
 export const createVisit = (b: {
   title: string; purpose: string; scheduledAt: string; company?: string; contactName?: string
   contactMobile?: string; contactEmail?: string; address?: string; latitude?: number; longitude?: number
+  productIds?: string[]; purposeOther?: string
 }) => post<{ id: string }>('/api/mobile/visits', b)
 
 export const setVisitStatus = (id: string, status: VisitStatus) => post(`/api/mobile/visits/${id}/status`, { status })
@@ -234,9 +293,6 @@ export const checkIn = (id: string, b: {
 export const submitReport = (id: string, b: {
   purpose: string; discussion: string; nextSteps: string; requirements?: string; competitorInfo?: string; customerFeedback?: string
 }) => post<{ id: string; dailyReportId?: string }>(`/api/mobile/visits/${id}/report`, b)
-
-export const getCompanies = () =>
-  request<{ companies: Company[] }>('/api/mobile/companies').then((r) => r.companies)
 
 export const getFollowUps = () =>
   request<{ followUps: FollowUp[] }>('/api/mobile/follow-ups').then((r) => r.followUps)

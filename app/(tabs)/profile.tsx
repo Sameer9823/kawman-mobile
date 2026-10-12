@@ -1,103 +1,169 @@
-import { useEffect, useState } from 'react'
-import { Alert, Switch, Text, View } from 'react-native'
-import { request, signOut } from '../../lib/api'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { View, Text, ScrollView, Alert, Linking, TouchableOpacity } from 'react-native'
+import { useRouter, useFocusEffect } from 'expo-router'
+import { MeProfile, getMe, signOut } from '../../lib/api'
+import { Card, s, colors, Avatar, Button, SectionHeader, SkeletonList, ErrorState } from '../../lib/ui'
+import { Ionicons } from '@expo/vector-icons'
+import { isOnDuty, startDuty, stopDuty, onDutyChange } from '../../lib/duty'
 import { markSignedOut } from '../../lib/auth-store'
-import { isOnDuty, onDutyChange, startDuty, stopDuty } from '../../lib/duty'
-import { Button, Card, Field, colors, s } from '../../lib/ui'
-import type { MeProfile } from '../../lib/api'
+import Constants from 'expo-constants'
+import { storage } from '../../lib/storage'
+
+const DUTY_START_KEY = 'duty-start'
 
 export default function Profile() {
+  const router = useRouter()
   const [me, setMe] = useState<MeProfile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [onDuty, setOnDuty] = useState(isOnDuty())
-  const [mocked, setMocked] = useState(false)
-  const [editing, setEditing] = useState(false)
-  const [name, setName] = useState('')
-  const [phone, setPhone] = useState('')
-  const [designation, setDesignation] = useState('')
+  const [dutyStart, setDutyStart] = useState<string | null>(null)
+  const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    request<MeProfile>('/api/mobile/me')
-      .then((data) => {
-        setMe(data)
-        setName(data.name ?? '')
-        setPhone(data.phone ?? '')
-        setDesignation(data.designation ?? '')
-      })
-      .catch(() => {})
-    onDutyChange((st) => { setOnDuty(st.onDuty); setMocked(st.mockedWarning) })
-    return () => onDutyChange(null)
+    const id = setInterval(() => setNow(() => Date.now()), 1000)
+    return () => clearInterval(id)
   }, [])
 
-  async function toggle(v: boolean) {
-    try {
-      if (v) await startDuty()
-      else await stopDuty()
-    } catch (e) { Alert.alert('Location', e instanceof Error ? e.message : 'Failed') }
-  }
+  useEffect(() => {
+    onDutyChange((s) => {
+      setOnDuty(s.onDuty)
+      if (s.onDuty) {
+        storage.get(DUTY_START_KEY).then(setDutyStart)
+      } else {
+        storage.remove(DUTY_START_KEY)
+        setDutyStart(null)
+      }
+    })
+  }, [])
 
-  const doSave = async () => {
-    if (!me) return
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      await updateMe({ name: name || undefined, phone: phone || undefined, designation: designation || undefined })
-      const updated = await request<MeProfile>('/api/mobile/me')
-      setMe(updated)
-      setEditing(false)
-      Alert.alert('Saved', 'Profile updated.')
+      const m = await getMe()
+      setMe(m)
+      const start = await storage.get(DUTY_START_KEY)
+      setDutyStart(start)
+      setOnDuty(isOnDuty())
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Failed to update')
+      setError(e instanceof Error ? e.message : 'Failed to load profile')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useFocusEffect(useCallback(() => { load().catch(() => {}) }, [load]))
+
+  const toggleDuty = async () => {
+    try {
+      if (onDuty) {
+        await stopDuty()
+      } else {
+        await storage.set(DUTY_START_KEY, new Date().toISOString())
+        await startDuty()
+      }
+    } catch (e) {
+      Alert.alert('Location permission', e instanceof Error ? e.message : 'Could not update duty status')
     }
   }
 
-  if (!me) {
-    return (
-      <View style={[s.screen, s.pad]}>
-        <Text style={[s.sub, { padding: 20 }]}>Loading…</Text>
-      </View>
-    )
+  const handleSignOut = () => {
+    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: async () => { await signOut(); markSignedOut(); router.replace('/login') } },
+    ])
   }
 
+  const fieldTime = useMemo(() => {
+    if (!dutyStart) return '—'
+    const ms = now - new Date(dutyStart).getTime()
+    const mins = Math.floor(ms / 60000)
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`
+  }, [dutyStart, now])
+
   return (
-    <View style={[s.screen, s.pad]}>
-      <Card>
-        <Text style={s.h1}>Profile</Text>
-        {editing ? (
-          <>
-            <Field label="Name" value={name} onChangeText={setName} />
-            <Field label="Phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
-            <Field label="Designation" value={designation} onChangeText={setDesignation} />
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-              <Button title="Save" onPress={doSave} />
-              <Button title="Cancel" variant="ghost" onPress={() => setEditing(false)} />
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 4 }}>{me.name ?? 'Unnamed'}</Text>
-            <Text style={s.sub}>{me.email}</Text>
-            {me.phone ? <Text style={s.sub}>Phone: {me.phone}</Text> : null}
-            {me.designation ? <Text style={s.sub}>Designation: {me.designation}</Text> : null}
-            <Text style={s.sub}>Roles: {me.roles.join(', ')}</Text>
-            <Button title="Edit" variant="ghost" onPress={() => setEditing(true)} />
-          </>
+    <ScrollView style={s.screen} contentContainerStyle={{ padding: 16, gap: 16 }}>
+      {loading ? (
+        <SkeletonList count={4} />
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : (
+      <>
+      <Card style={{ padding: 16, alignItems: 'center', gap: 8 }}>
+        <Avatar name={me?.name ?? 'U'} size={72} />
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text }}>{me?.name ?? 'Loading…'}</Text>
+          <Text style={s.sub}>{me?.designation ?? ''}</Text>
+          <Text style={s.sub}>{me?.email}</Text>
+        </View>
+      </Card>
+
+      <SectionHeader title="Duty & attendance" />
+      <Card style={{ padding: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <View>
+            <Text style={[s.sub, { marginBottom: 4 }]}>Status</Text>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: onDuty ? colors.danger : colors.text }}>
+              {onDuty ? 'On duty' : 'Off duty'}
+            </Text>
+          </View>
+          <Button title={onDuty ? 'End day' : 'Start day'} onPress={toggleDuty} variant={onDuty ? 'danger' : 'primary'} style={{ width: 120 }} />
+        </View>
+        {onDuty && dutyStart && (
+          <View>
+            <Text style={s.sub}>Started</Text>
+            <Text style={{ fontSize: 14, color: colors.text }}>{new Date(dutyStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+            <Text style={[s.sub, { marginTop: 8 }]}>Field time</Text>
+            <Text style={{ fontSize: 14, color: colors.text }}>{fieldTime}</Text>
+          </View>
+        )}
+        {!onDuty && (
+          <View>
+            <Text style={s.sub}>Location is only tracked while on duty.</Text>
+            <Text style={[s.sub, { marginTop: 4 }]}>Tap Start day to begin live tracking.</Text>
+          </View>
         )}
       </Card>
 
-      <Card>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flex: 1, paddingRight: 12 }}>
-            <Text style={{ fontWeight: '600' }}>On duty (share live location)</Text>
-            <Text style={s.sub}>Shows you on the dashboard Live Map while this app is open.</Text>
-          </View>
-          <Switch value={onDuty} onValueChange={toggle} trackColor={{ true: colors.primary }} />
+      <SectionHeader title="Targets" />
+      <Card style={{ padding: 16, gap: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={s.sub}>Visits planned</Text>
+          <Text style={{ fontWeight: '600', color: colors.text }}>—</Text>
         </View>
-        {mocked ? <Text style={{ color: colors.danger, marginTop: 8 }}>Mock location detected — positions are not being sent.</Text> : null}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={s.sub}>Visits completed</Text>
+          <Text style={{ fontWeight: '600', color: colors.text }}>—</Text>
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={s.sub}>Follow-ups closed</Text>
+          <Text style={{ fontWeight: '600', color: colors.text }}>—</Text>
+        </View>
       </Card>
 
-      <Button title="Sign out" variant="danger" onPress={async () => { await stopDuty(); await signOut(); markSignedOut() }} />
-    </View>
-  )
-}
+      <SectionHeader title="Support" />
+      <Card style={{ padding: 8 }}>
+        <TouchableOpacity onPress={() => Linking.openURL('mailto:digital@kawmanexact.com')} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }} accessibilityLabel="Contact support">
+          <Ionicons name="mail-outline" size={24} color={colors.primary} />
+          <Text style={{ fontSize: 15, color: colors.text }}>Contact support</Text>
+        </TouchableOpacity>
+      </Card>
 
-async function updateMe(body: { name?: string; phone?: string; designation?: string }) {
-  return request('/api/mobile/me', { method: 'PATCH', body: JSON.stringify(body) })
+      <Card style={{ padding: 16, gap: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={s.sub}>App version</Text>
+          <Text style={{ fontWeight: '600', color: colors.text }}>{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+          <Text style={s.sub}>Device</Text>
+          <Text style={{ fontWeight: '600', color: colors.text }}>{Constants?.deviceName ?? '—'}</Text>
+        </View>
+      </Card>
+
+      <Button title="Sign out" variant="danger" onPress={handleSignOut} />
+      </>
+    )}
+    </ScrollView>
+  )
 }

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Kawman Field",
+    "name": "Kawmanexact Sales Tracking",
     "slug": "kawman-field",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -25,13 +25,13 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Kawman Field uses your location to verify field visit check-ins."
+          "locationWhenInUsePermission": "Kawmanexact Sales Tracking uses your location to verify field visit check-ins."
         }
       ],
       [
         "expo-image-picker",
         {
-          "cameraPermission": "Kawman Field uses the camera for visit proof photos and business card scans.",
+          "cameraPermission": "Kawmanexact Sales Tracking uses the camera for visit proof photos and business card scans.",
           "microphonePermission": false
         }
       ],

@@ -1,4 +1,4 @@
-# Kawman Field (Android)
+# Kawmanexact Sales Tracking (Android)
 
 Expo / React Native app for field-sales reps. Talks to the `kawmanexact-crm`
 dashboard backend (same login, same database).

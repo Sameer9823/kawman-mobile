@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { KeyboardAvoidingView, Platform, Text, View } from 'react-native'
-import { Button, Field, colors, s } from '../lib/ui'
+import { KeyboardAvoidingView, Platform, Image, Text, View } from 'react-native'
+import { Button, Field, s } from '../lib/ui'
+import { APP_NAME, TAGLINE, LOGO_HEADER, colors } from '../lib/brand'
 import { signIn } from '../lib/api'
 import { markSignedIn } from '../lib/auth-store'
 
@@ -25,7 +26,7 @@ export default function Login() {
       } else if (msg.includes('401') || msg.includes('Unauthorized')) {
         friendly = 'Invalid email or password.'
       } else if (msg.includes('403')) {
-        friendly = 'The server blocked the sign-in. Please contact support.'
+        friendly = `Sign-in rejected by server: ${msg}`
       } else if (msg.includes('429') || msg.includes('Too many')) {
         friendly = 'Too many attempts. Please wait a minute.'
       } else if (msg.includes('network') || msg.includes('Network')) {
@@ -37,8 +38,9 @@ export default function Login() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.screen, { justifyContent: 'center', padding: 24 }]}>
-      <Text style={[s.h1, { fontSize: 28, marginBottom: 4 }]}>Kawman Field</Text>
-      <Text style={[s.sub, { marginBottom: 24 }]}>Sign in with your @kawmanexact.com account</Text>
+      <Image source={LOGO_HEADER} style={{ width: 160, height: 42, resizeMode: 'contain', marginBottom: 8 }} />
+      <Text style={[s.h1, { fontSize: 28, marginBottom: 4 }]}>{APP_NAME}</Text>
+      <Text style={[s.sub, { marginBottom: 24 }]}>{TAGLINE}</Text>
       <Field label="Email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" autoComplete="email" error={error || undefined} />
       <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" error={error || undefined} />
       <View style={{ height: 8 }} />

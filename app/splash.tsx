@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react'
-import { View, Pressable, StyleSheet, ViewStyle } from 'react-native'
+import { View, Pressable, StyleSheet, Text, ViewStyle, TextStyle } from 'react-native'
 import { gsap } from 'gsap'
 import AnimatedLogo, { type AnimatedLogoPathRefs } from '../components/AnimatedLogo'
-import KawmanText from '../assets/kawman-text.svg'
-import { colors } from '../lib/ui'
+import { APP_NAME, TAGLINE, colors } from '../lib/brand'
 
 export default function Splash({ onComplete }: { onComplete: () => void }) {
   const containerRef = useRef<View>(null)
@@ -199,13 +198,14 @@ export default function Splash({ onComplete }: { onComplete: () => void }) {
               />
             )}
           </View>
-          <View
-            ref={wordmarkRef}
-            style={styles.wordmark}
-            pointerEvents="none"
-          >
-            <KawmanText width={556} height={100} />
-          </View>
+            <View
+              ref={wordmarkRef}
+              style={styles.wordmark}
+              pointerEvents="none"
+            >
+              <Text style={styles.wordmarkTitle}>{APP_NAME}</Text>
+              <Text style={styles.wordmarkSubtitle}>{TAGLINE}</Text>
+            </View>
         </View>
       </View>
     </Pressable>
@@ -218,6 +218,8 @@ const styles = StyleSheet.create<{
   logoGroup: ViewStyle
   logoContainer: ViewStyle
   wordmark: ViewStyle
+  wordmarkTitle: TextStyle
+  wordmarkSubtitle: TextStyle
   hint: ViewStyle
 }>({
   pressable: {
@@ -244,6 +246,19 @@ const styles = StyleSheet.create<{
   },
   wordmark: {
     opacity: 0,
+    alignItems: 'center',
+  },
+  wordmarkTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.dark,
+    textAlign: 'center',
+  },
+  wordmarkSubtitle: {
+    fontSize: 13,
+    color: colors.primary,
+    textAlign: 'center',
+    marginTop: 2,
   },
   hint: {
     position: 'absolute',

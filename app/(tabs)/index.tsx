@@ -1,69 +1,202 @@
-import { useCallback, useState } from 'react'
-import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
-import { useFocusEffect, useRouter } from 'expo-router'
-import { getVisits, Visit } from '../../lib/api'
-import { Button, Card, colors, s } from '../../lib/ui'
+import { useCallback, useEffect, useState } from 'react'
+import { Alert, FlatList, RefreshControl, ScrollView, View, Text, TouchableOpacity } from 'react-native'
+import { useRouter, useFocusEffect } from 'expo-router'
+import { Card, s, colors, StatusChip, SectionHeader, EmptyState, ErrorState, SkeletonList, Avatar } from '../../lib/ui'
+import { Ionicons } from '@expo/vector-icons'
+import { MeProfile, Visit, FollowUp, getMe, getVisits, getFollowUps } from '../../lib/api'
+import { isOnDuty, startDuty, stopDuty, onDutyChange } from '../../lib/duty'
+import { storage } from '../../lib/storage'
 
-const SCOPES = ['today', 'upcoming', 'all'] as const
+const SYNC_KEY = 'last-sync'
 
-export default function Visits() {
+export default function Home() {
   const router = useRouter()
-  const [scope, setScope] = useState<(typeof SCOPES)[number]>('today')
+  const [me, setMe] = useState<MeProfile | null>(null)
   const [visits, setVisits] = useState<Visit[]>([])
-  const [loading, setLoading] = useState(false)
+  const [followUps, setFollowUps] = useState<FollowUp[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [lastSync, setLastSync] = useState<string | null>(null)
+  const [onDuty, setOnDuty] = useState(isOnDuty())
+
+  useEffect(() => {
+    onDutyChange((s) => setOnDuty(s.onDuty))
+  }, [])
 
   const load = useCallback(async () => {
-    setLoading(true); setError(null)
-    let from: string | undefined
-    let to: string | undefined
-    if (scope === 'today' || scope === 'upcoming') {
-      const start = new Date()
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(start)
-      end.setDate(end.getDate() + 1)
-      from = start.toISOString()
-      to = end.toISOString()
-    }
-    try { setVisits(await getVisits(scope, from, to)) } catch (e) { setError(e instanceof Error ? e.message : 'Failed to load') }
-    finally { setLoading(false) }
-  }, [scope])
+    setSyncing(true)
+    setError(null)
+    try {
+      const [meRes, visitsRes, fusRes] = await Promise.allSettled([
+        getMe(),
+        getVisits('today'),
+        getFollowUps(),
+      ])
+      if (meRes.status === 'fulfilled') setMe(meRes.value)
+      if (visitsRes.status === 'fulfilled') {
+        setVisits(visitsRes.value)
+      } else {
+        setError(visitsRes.reason instanceof Error ? visitsRes.reason.message : 'Failed')
+      }
+      if (fusRes.status === 'fulfilled') setFollowUps(fusRes.value)
 
-  useFocusEffect(useCallback(() => { load() }, [load]))
+      const now = new Date().toISOString()
+      await storage.set(SYNC_KEY, now)
+      setLastSync(now)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data')
+    } finally {
+      setLoading(false)
+      setSyncing(false)
+    }
+  }, [])
+
+  useFocusEffect(useCallback(() => { load().catch(() => {}) }, [load]))
+
+  const todayVisits = visits.filter((v) => {
+    const d = new Date(v.scheduledAt)
+    const today = new Date()
+    return d.toDateString() === today.toDateString()
+  })
+  const completedToday = todayVisits.filter((v) => v.status === 'COMPLETED').length
+  const plannedToday = todayVisits.length
+  const dueFus = followUps.filter((f) => f.status === 'PENDING' || f.status === 'OVERDUE').length
+  const nextVisit = visits.find((v) => ['SCHEDULED', 'ON_THE_WAY'].includes(v.status))
+
+  const toggleDuty = async () => {
+    try {
+      if (onDuty) {
+        await stopDuty()
+      } else {
+        await startDuty()
+      }
+    } catch (e) {
+      Alert.alert('Location permission', e instanceof Error ? e.message : 'Could not update duty status')
+    }
+  }
+
+  const renderVisit = ({ item }: { item: Visit }) => (
+    <TouchableOpacity onPress={() => router.push(`/visit/${item.id}`)} activeOpacity={0.7} accessibilityLabel={`Visit: ${item.title}`}>
+      <Card style={{ padding: 12, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{item.title}</Text>
+          <StatusChip status={item.status} />
+        </View>
+        {item.company ? <Text style={s.sub}>{item.company}</Text> : null}
+        <Text style={s.sub}>{new Date(item.scheduledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+      </Card>
+    </TouchableOpacity>
+  )
 
   return (
-    <View style={s.screen}>
-      <View style={{ flexDirection: 'row', gap: 8, padding: 12 }}>
-        {SCOPES.map((k) => (
-          <Pressable key={k} onPress={() => setScope(k)}
-            style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 999, backgroundColor: scope === k ? colors.primary : '#e5e7eb' }}>
-            <Text style={{ color: scope === k ? '#fff' : colors.text, textTransform: 'capitalize', fontWeight: '600' }}>{k}</Text>
-          </Pressable>
-        ))}
-      </View>
-      {error ? <Text style={{ color: colors.danger, paddingHorizontal: 16 }}>{error}</Text> : null}
-      <FlatList
-        data={visits}
-        keyExtractor={(v) => v.id}
-        contentContainerStyle={{ padding: 12, gap: 10 }}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} />}
-        ListEmptyComponent={!loading ? <Text style={[s.sub, { textAlign: 'center', marginTop: 40 }]}>No visits {scope === 'all' ? 'yet' : scope}.</Text> : undefined}
-        renderItem={({ item }) => (
-          <Pressable onPress={() => router.push({ pathname: '/visit/[id]', params: { id: item.id } })}>
-            <Card>
-              <Text style={{ fontWeight: '700', fontSize: 16, color: colors.text }}>{item.title}</Text>
-              <Text style={s.sub}>{[item.company, item.contact].filter(Boolean).join(' · ') || item.purpose}</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-                <Text style={s.sub}>{new Date(item.scheduledAt).toLocaleString()}</Text>
-                <Text style={{ color: colors.primary, fontWeight: '600', fontSize: 12 }}>{item.status.replace(/_/g, ' ')}</Text>
-              </View>
+    <ScrollView
+      style={s.screen}
+      refreshControl={<RefreshControl refreshing={syncing} onRefresh={load} tintColor={colors.primary} />}
+    >
+      <View style={{ padding: 16, gap: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={{ fontSize: 14, color: colors.sub }}>Hello,</Text>
+            <Text style={[s.h1, { fontSize: 22 }]}>{me?.name ?? '...'}</Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/profile')} accessibilityLabel="Profile">
+            <Avatar name={me?.name ?? 'U'} size={44} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={toggleDuty} style={{ flex: 1 }} accessibilityLabel={onDuty ? 'End day' : 'Start day'} activeOpacity={0.8}>
+            <Card style={{ padding: 16, alignItems: 'center', flexDirection: 'row', gap: 8 }}>
+              <Ionicons name={onDuty ? 'pause-circle' : 'play-circle-outline'} size={24} color={onDuty ? colors.danger : colors.primary} />
+              <Text style={{ fontWeight: '600', color: colors.text }}>{onDuty ? 'On duty' : 'Start day'}</Text>
             </Card>
-          </Pressable>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => {}} style={{ flex: 1 }} accessibilityLabel="End day" activeOpacity={0.8}>
+            <Card style={{ padding: 16, alignItems: 'center', flexDirection: 'row', gap: 8 }}>
+              <Ionicons name="stop-circle-outline" size={24} color={colors.primary} />
+              <Text style={{ fontWeight: '600', color: colors.text }}>End day</Text>
+            </Card>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <Card style={{ flex: 1, padding: 14, alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>{plannedToday - completedToday}</Text>
+            <Text style={s.sub}>Visits left</Text>
+          </Card>
+          <Card style={{ flex: 1, padding: 14, alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>{completedToday}</Text>
+            <Text style={s.sub}>Visits done</Text>
+          </Card>
+          <Card style={{ flex: 1, padding: 14, alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>{dueFus}</Text>
+            <Text style={s.sub}>Follow-ups due</Text>
+          </Card>
+          <Card style={{ flex: 1, padding: 14, alignItems: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: colors.primary }}>—</Text>
+            <Text style={s.sub}>Sales today</Text>
+          </Card>
+        </View>
+
+        {nextVisit && (
+          <Card style={{ padding: 16 }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: colors.sub, textTransform: 'uppercase' }}>Next visit</Text>
+            <Text style={{ fontSize: 18, fontWeight: '700', color: colors.text, marginTop: 4 }}>{nextVisit.title}</Text>
+            {nextVisit.company ? <Text style={s.sub}>{nextVisit.company}</Text> : null}
+            <Text style={s.sub}>{new Date(nextVisit.scheduledAt).toLocaleString()}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              <TouchableOpacity
+                onPress={() => {}}
+                style={{ backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, flex: 1, alignItems: 'center' }}
+                accessibilityLabel="Navigate to visit"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="navigate-outline" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '600', marginTop: 4, fontSize: 13 }}>Navigate</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push(`/visit/${nextVisit.id}`)}
+                style={{ backgroundColor: colors.blue, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, flex: 1, alignItems: 'center' }}
+                accessibilityLabel="Check in"
+                activeOpacity={0.8}
+              >
+                <Ionicons name="location-outline" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontWeight: '600', marginTop: 4, fontSize: 13 }}>Check in</Text>
+              </TouchableOpacity>
+            </View>
+          </Card>
         )}
-      />
-      <View style={{ padding: 12 }}>
-        <Button title="+ New visit" onPress={() => router.push('/visit/new')} />
+
+        <SectionHeader title="Today's visits" subtitle={`${completedToday} of ${plannedToday} completed`} />
+
+        {loading ? (
+          <SkeletonList count={4} />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : todayVisits.length === 0 ? (
+          <EmptyState
+            icon={<Ionicons name="calendar-outline" size={48} color={colors.sub} />}
+            title="No visits scheduled for today."
+            action="Plan a visit"
+            onAction={() => router.push('/visit/new')}
+          />
+        ) : (
+          <FlatList
+            data={todayVisits.slice(0, 8)}
+            keyExtractor={(item) => item.id}
+            renderItem={renderVisit}
+            scrollEnabled={false}
+            refreshControl={<RefreshControl refreshing={syncing} onRefresh={load} tintColor={colors.primary} />}
+          />
+        )}
+
+        {lastSync && (
+          <Text style={[s.sub, { textAlign: 'center', marginTop: 8, fontSize: 11 }]}>
+            Last synced: {new Date(lastSync).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </Text>
+        )}
       </View>
-    </View>
+    </ScrollView>
   )
 }

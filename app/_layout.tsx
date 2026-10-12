@@ -48,6 +48,7 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="visit/new" options={{ title: 'New visit', presentation: 'modal' }} />
         <Stack.Screen name="visit/[id]" options={{ title: 'Visit' }} />
+        <Stack.Screen name="contacts/scan" options={{ title: 'Scan card', presentation: 'modal' }} />
       </Stack>
     </>
   )

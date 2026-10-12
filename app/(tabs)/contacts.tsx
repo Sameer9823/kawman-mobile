@@ -1,104 +1,110 @@
-import { useState } from 'react'
-import { Alert, Image, ScrollView, Text, View } from 'react-native'
-import { ApiError, saveContact, scanCard, ScannedCard } from '../../lib/api'
-import { compress, pickFromGallery, takePhoto } from '../../lib/media'
-import { Button, Field, colors, s } from '../../lib/ui'
+import { useCallback, useState } from 'react'
+import { FlatList, RefreshControl, View, Text, TouchableOpacity, TextInput, Linking } from 'react-native'
+import { useRouter, useFocusEffect } from 'expo-router'
+import { Contact, getContacts } from '../../lib/api'
+import { Card, s, colors, Avatar, EmptyState, ErrorState, SkeletonList } from '../../lib/ui'
+import { Ionicons } from '@expo/vector-icons'
 
-const clean = (v?: string) => (!v || v === '-' ? '' : v)
+export default function ContactsTab() {
+  const router = useRouter()
+  const [search, setSearch] = useState('')
+  const [contacts, setContacts] = useState<Contact[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-const FIELDS: [keyof ScannedCard, string, object?][] = [
-  ['name', 'Name *'], ['designation', 'Designation'], ['company', 'Company'],
-  ['mobile', 'Mobile', { keyboardType: 'phone-pad' }], ['phone', 'Phone', { keyboardType: 'phone-pad' }],
-  ['email', 'Email', { keyboardType: 'email-address', autoCapitalize: 'none' }],
-  ['website', 'Website', { keyboardType: 'url', autoCapitalize: 'none' }],
-  ['address', 'Address'],
-]
-
-export default function Contacts() {
-  const [uri, setUri] = useState<string | null>(null)
-  const [card, setCard] = useState<ScannedCard | null>(null)
-  const [busy, setBusy] = useState<'scan' | 'save' | null>(null)
-  const [errs, setErrs] = useState<Record<string, string>>({})
-
-  async function capture(fromGallery: boolean) {
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      const raw = fromGallery ? await pickFromGallery() : await takePhoto()
-      if (!raw) return
-      setBusy('scan'); setCard(null); setErrs({})
-      const small = await compress(raw, 1600)
-      setUri(small)
-      const r = await scanCard(small)
-      // Fill missing fields with '-' as per requirements
-      setCard({
-        name: clean(r.name) || '-',
-        company: clean(r.company) || '-',
-        designation: clean(r.designation) || '-',
-        phone: clean(r.phone) || '-',
-        mobile: clean(r.mobile) || '-',
-        email: clean(r.email) || '-',
-        website: clean(r.website) || '-',
-        address: clean(r.address) || '-',
-      })
+      const c = await getContacts()
+      setContacts(c)
     } catch (e) {
-      Alert.alert('Scan failed', e instanceof Error ? e.message : 'Try again with better light.')
-    } finally { setBusy(null) }
-  }
-
-  async function save() {
-    if (!card) return
-    setBusy('save'); setErrs({})
-    const v = (s?: string) => (!s || s.trim() === '-' ? '' : s.trim())
-    if (v(card.name).length < 2) {
-      setErrs({ name: 'Name is required' })
-      setBusy(null)
-      return
+      setError(e instanceof Error ? e.message : 'Failed to load contacts')
+    } finally {
+      setLoading(false)
     }
-    try {
-      await saveContact(card)
-      Alert.alert('Saved', `${card.name !== '-' ? card.name : 'Contact'} was added to Contacts.`)
-      setCard(null); setUri(null)
-    } catch (e) {
-      if (e instanceof ApiError && e.fieldErrors) setErrs(e.fieldErrors)
-      else Alert.alert('Could not save', e instanceof Error ? e.message : 'Try again')
-    } finally { setBusy(null) }
+  }, [])
+
+  useFocusEffect(useCallback(() => { load().catch(() => {}) }, [load]))
+
+  const filtered = search
+    ? contacts.filter((c) => c.name.toLowerCase().includes(search.toLowerCase()) || (c.company?.toLowerCase().includes(search.toLowerCase()) ?? false))
+    : contacts
+
+  const call = (phone: string | null) => {
+    if (phone) Linking.openURL(`tel:${phone}`)
+  }
+  const sms = (phone: string | null) => {
+    if (phone) Linking.openURL(`sms:${phone}`)
+  }
+  const email = (addr: string | null) => {
+    if (addr) Linking.openURL(`mailto:${addr}`)
   }
 
-  function discard() {
-    setCard(null)
-    setUri(null)
-    setErrs({})
-  }
+  const renderItem = ({ item }: { item: Contact }) => (
+    <Card style={{ padding: 12, marginBottom: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Avatar name={item.name} size={40} />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text }}>{item.name}</Text>
+          {item.designation ? <Text style={s.sub}>{item.designation}</Text> : null}
+          {item.company ? <Text style={s.sub}>{item.company}</Text> : null}
+        </View>
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {item.mobile ? <Ionicons name="call-outline" size={22} color={colors.primary} onPress={() => call(item.mobile)} /> : null}
+          {item.mobile ? <Ionicons name="logo-whatsapp" size={22} color="#22c55e" onPress={() => sms(item.mobile)} /> : null}
+          {item.email ? <Ionicons name="mail-outline" size={22} color={colors.blue} onPress={() => email(item.email)} /> : null}
+        </View>
+      </View>
+    </Card>
+  )
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
-      {!card && (
-        <>
-          <Text style={[s.sub, { marginBottom: 16 }]}>Photograph a business card flat, in good light. The details are read for you and you can correct them before saving.</Text>
-          <Button title="Scan with camera" onPress={() => capture(false)} loading={busy === 'scan'} />
-          <Button title="Choose from gallery" variant="ghost" onPress={() => capture(true)} disabled={busy === 'scan'} />
-          {busy === 'scan' ? <Text style={[s.sub, { textAlign: 'center', marginTop: 8 }]}>Reading card…</Text> : null}
-        </>
-      )}
-
-      {uri ? <Image source={{ uri }} style={{ height: 150, borderRadius: 10 }} resizeMode="contain" /> : null}
-
-      {card && (
-        <View>
-          <Text style={[s.h1, { marginBottom: 12 }]}>Scanned Contact</Text>
-          {FIELDS.map(([k, label, extra]) => (
-            <Field key={k} label={label} value={card[k]} onChangeText={(v) => setCard({ ...card, [k]: v })} error={errs[k]} {...extra} />
-          ))}
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
-            <View style={{ flex: 1 }}>
-              <Button title="Save contact" onPress={save} loading={busy === 'save'} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button title="Discard" variant="ghost" onPress={discard} />
-            </View>
-          </View>
-          <Text style={{ color: colors.sub, fontSize: 12, marginTop: 8 }}>Saved contacts appear in the dashboard under Contacts.</Text>
+    <View style={s.screen}>
+      <View style={{ padding: 16, gap: 12 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Text style={[s.h1, { fontSize: 24 }]}>Contacts</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/contacts/scan')}
+            accessibilityLabel="Scan business card"
+            style={{ backgroundColor: colors.primary, borderRadius: 28, width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="camera-outline" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
-      )}
-    </ScrollView>
+
+        <View style={{ backgroundColor: colors.card, borderRadius: 10, paddingHorizontal: 12, height: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.border }}>
+          <Ionicons name="search-outline" size={18} color={colors.sub} style={{ position: 'absolute', left: 12, zIndex: 1 }} />
+          <TextInput
+            placeholder="Search contacts..."
+            placeholderTextColor={colors.sub}
+            style={{ fontSize: 15, color: colors.text, paddingLeft: 32, height: 44 }}
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
+
+        {loading ? (
+          <SkeletonList count={6} />
+        ) : error ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<Ionicons name="people-outline" size={48} color={colors.sub} />}
+            title="No contacts found."
+            action="Scan a business card"
+            onAction={() => router.push('/contacts/scan')}
+          />
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={{ paddingBottom: 16 }}
+            refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.primary} />}
+          />
+        )}
+      </View>
+    </View>
   )
 }
