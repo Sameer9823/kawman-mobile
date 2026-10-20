@@ -16,6 +16,8 @@ export default function ContactScan() {
   const doScan = async () => {
     setScanning(true)
     setError(null)
+    setPhoto(null)
+    setResult(null)
     try {
       const shot = await takePhoto()
       if (!shot) return

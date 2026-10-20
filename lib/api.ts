@@ -54,29 +54,35 @@ export class ApiError extends Error {
 }
 
 /**
- * Create a FormData entry from a local file URI.
+ * Create a FormData entry from a file URI or URL.
  *
- * SDK 57 note: expo-file-system's `File` constructor takes **path segments only**
- * (`new File(...uris)`). The older `new File(uri, { name, type })` from pre-SDK-57
- * is gone — passing the options object makes PathUtilities.join read `path.uri`
- * off the options (which is `undefined`), and `encodeURLChars(undefined)` does
- * `path.charAt(...)` → "cannot read property 'charAt' of undefined". That crash
- * broke business-card scan (POST /api/contacts/scan) and check-in photo uploads
- * (Cloudinary).
+ * SDK 57: expo-file-system's `File` takes path segments only (`new File(...uris)`),
+ * not the pre-SDK-57 `new File(uri, { name, type })` options object.
  *
- * Build a path-only expo `File` for its `bytes()`, then append a Blob-like part
- * `{ bytes, name, type }`. Expo's fetch serializer (convertFormDataAsync) accepts
- * any part that exposes a `bytes()` method, so this gives us explicit control
- * over the filename and Content-Type (the CRM scan route validates
- * `file.type.startsWith('image/')`) without buffering the image eagerly. The
- * bytes are only read when the request is actually sent.
+ * `File.bytes()` reads `file://` and Android `content://` URIs (JavaFile /
+ * ContentProviderFile) but rejects every other scheme: a `https://` URL — the
+ * Cloudinary URL handed to `scanCard` — hits the `JavaFile` branch and throws
+ * `IllegalArgumentException: URI scheme is not "file"`, the "Scan business card"
+ * crash. Fetch network URLs instead (Expo's fetch also serves `file://`). Bytes
+ * are still read lazily when the request is sent — expo's serializer
+ * (convertFormDataAsync) `await`s the `bytes()` callback, and the OCR route
+ * validates `file.type.startsWith('image/')`.
  */
 export function createFileFormData(uri: string, fieldName = 'file', fileName = `upload-${Date.now()}.jpg`, mimeType = 'image/jpeg'): FormData {
   const form = new FormData()
-  const src = new File(uri)
   // @ts-expect-error - Expo's fetch accepts any Blob-like part (bytes()+name+type); the DOM type only allows string | Blob.
-  form.append(fieldName, { bytes: () => src.bytes(), name: fileName, type: mimeType })
+  form.append(fieldName, { bytes: async () => readUriAsBytes(uri), name: fileName, type: mimeType })
   return form
+}
+
+async function readUriAsBytes(uri: string): Promise<Uint8Array> {
+  if (uri.startsWith('http://') || uri.startsWith('https://')) {
+    const res = await fetch(uri)
+    if (!res.ok) throw new Error(`Unable to read image from ${uri} (${res.status})`)
+    const buf = await res.arrayBuffer()
+    return new Uint8Array(buf)
+  }
+  return new File(uri).bytes()
 }
 
 /**
