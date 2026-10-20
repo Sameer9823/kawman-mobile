@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Alert, Image } from 'react-native'
+import { View, Text, Alert, Image, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { takePhoto, compress, uploadToCloudinary } from '../../lib/media'
 import { scanCard, saveContact, ScannedCard } from '../../lib/api'
@@ -45,7 +45,7 @@ export default function ContactScan() {
   }
 
   return (
-    <View style={[s.screen, { padding: 16 }]}>
+    <ScrollView style={s.screen} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTapping="always">
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Text style={[s.h1, { fontSize: 20 }]}>Scan business card</Text>
       </View>
@@ -84,6 +84,6 @@ export default function ContactScan() {
       )}
 
       {error && <ErrorState message={error} onRetry={doScan} />}
-    </View>
+    </ScrollView>
   )
 }
