@@ -76,7 +76,7 @@ export default function Reports() {
         <StatPill label="CRM updates" value={draft.crmRecordsUpdatedCount} />
         <StatPill label="Leads worked" value={draft.leadsWorkedOnCount} />
         <StatPill label="Files uploaded" value={draft.filesUploadedCount} />
-        <StatPill label="Active minutes" value={draft.activeWorkingTimeMinutes} />
+        <StatPill label="Active hours" value={Math.round((draft.activeWorkingTimeMinutes / 60) * 10) / 10} />
         <StatPill label="Visit reports" value={draft.visitReportsCount} />
         <StatPill label="Check-ins" value={draft.checkInsCount} />
       </View>
