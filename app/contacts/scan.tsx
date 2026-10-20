@@ -45,7 +45,7 @@ export default function ContactScan() {
   }
 
   return (
-    <ScrollView style={s.screen} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTapping="always">
+    <ScrollView style={s.screen} contentContainerStyle={{ padding: 16 }} keyboardShouldPersistTaps="always">
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Text style={[s.h1, { fontSize: 20 }]}>Scan business card</Text>
       </View>

@@ -69,6 +69,8 @@ export const StatusChip = ({ status, label }: { status: string; label?: string }
     CANCELLED: { bg: '#fee2e2', text: '#b91c1c' },
     PENDING: { bg: '#fffbeb', text: '#92400d' },
     OVERDUE: { bg: '#fee2e2', text: '#b91c1c' },
+    ON_DUTY: { bg: '#dcfce7', text: '#15803d' },
+    OFF_DUTY: { bg: '#f1f5f9', text: '#475569' },
   }
   const c = colors_map[status] || { bg: '#f1f5f9', text: '#475569' }
   const display = label ?? status.replace(/_/g, ' ')

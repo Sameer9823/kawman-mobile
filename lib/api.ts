@@ -233,12 +233,13 @@ export interface MeProfile {
   designation: string | null
   organizationId: string
   roles: string[]
+  permissions: string[]
 }
 
 export const getMe = () =>
-  request<{ id: string; name: string | null; email: string; phone: string | null; designation: string | null; organizationId: string; roles: string[] }>(
+  request<{ id: string; name: string | null; email: string; phone: string | null; designation: string | null; organizationId: string; roles: string[]; permissions: string[] }>(
     '/api/mobile/me',
-  ).then((r) => ({ id: r.id, name: r.name, email: r.email, phone: r.phone, designation: r.designation, organizationId: r.organizationId, roles: r.roles }))
+  ).then((r) => ({ id: r.id, name: r.name, email: r.email, phone: r.phone, designation: r.designation, organizationId: r.organizationId, roles: r.roles, permissions: r.permissions ?? [] }))
 
 export const updateMe = (body: { name?: string; phone?: string; designation?: string }) =>
   request<{ user: { id: string; name: string | null; email: string; phone: string | null; designation: string | null } }>('/api/mobile/me', {
@@ -390,4 +391,26 @@ export async function scanCard(uri: string): Promise<ScannedCard> {
   const form = createFileFormData(uri, 'file', 'card.jpg', 'image/jpeg')
   const r = await request<{ contact: ScannedCard }>('/api/contacts/scan', { method: 'POST', body: form })
   return r.contact
+}
+
+// ---- Duty sessions (Start Day / End Day) ----
+
+export interface DutySessionInfo {
+  id: string
+  userName: string
+  userEmail: string
+  userStatus: string
+  startedAt: string
+  endedAt: string | null
+  isActive: boolean
+  durationMinutes: number | null
+}
+
+export const startDutySession = () => post<{ ok: true; sessionId: string }>('/api/mobile/duty/start', {})
+
+export const endDutySession = () => post<{ ok: true; ended: boolean }>('/api/mobile/duty/end', {})
+
+export const getDutySessions = (date?: string) => {
+  const params = date ? `?date=${encodeURIComponent(date)}` : ''
+  return request<{ sessions: DutySessionInfo[] }>(`/api/mobile/duty/sessions${params}`).then((r) => r.sessions)
 }

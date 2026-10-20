@@ -1,5 +1,5 @@
 import * as Location from 'expo-location'
-import { pingLocation, stopLocation } from './api'
+import { pingLocation, stopLocation, startDutySession, endDutySession } from './api'
 
 /**
  * Foreground live tracking for the dashboard's Live Map. Runs while the app is
@@ -32,11 +32,17 @@ export async function startDuty() {
       }).catch(() => {})
     },
   )
+
+  // Record duty start on the server so admins can see it
+  startDutySession().catch(() => {})
   emit()
 }
 
 export async function stopDuty() {
   sub?.remove(); sub = null; mockedWarning = false
+
+  // Record duty end on the server
+  endDutySession().catch(() => {})
   await stopLocation().catch(() => {})
   emit()
 }

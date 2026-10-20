@@ -83,28 +83,29 @@ export default function ContactsTab() {
             onChangeText={setSearch}
           />
         </View>
-
-        {loading ? (
-          <SkeletonList count={6} />
-        ) : error ? (
-          <ErrorState message={error} onRetry={load} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={<Ionicons name="people-outline" size={48} color={colors.sub} />}
-            title="No contacts found."
-            action="Scan a business card"
-            onAction={() => router.push('/contacts/scan')}
-          />
-        ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={{ paddingBottom: 16 }}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.primary} />}
-          />
-        )}
       </View>
+
+      {loading ? (
+        <View style={{ padding: 16 }}><SkeletonList count={6} /></View>
+      ) : error ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          icon={<Ionicons name="people-outline" size={48} color={colors.sub} />}
+          title="No contacts found."
+          action="Scan a business card"
+          onAction={() => router.push('/contacts/scan')}
+        />
+      ) : (
+        <FlatList
+          style={{ flex: 1 }}
+          data={filtered}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }}
+          refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.primary} />}
+        />
+      )}
     </View>
   )
 }
