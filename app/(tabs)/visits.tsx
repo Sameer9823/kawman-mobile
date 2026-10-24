@@ -59,10 +59,23 @@ export default function VisitsTab() {
       activeOpacity={0.7}
     >
       <Card style={{ marginBottom: 12, padding: 16 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>{item.title}</Text>
-          <StatusChip status={item.status} />
-        </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+            <Text style={{ fontSize: 16, fontWeight: '600', color: colors.text, flex: 1 }}>{item.title}</Text>
+            <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <TouchableOpacity
+                onPress={(e) => {
+                  e.stopPropagation()
+                  router.push({ pathname: '/visit/new', params: { editId: item.id } })
+                }}
+                accessibilityLabel="Edit visit"
+                style={{ padding: 4 }}
+                hitSlop={16}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.primary} />
+              </TouchableOpacity>
+              <StatusChip status={item.status} />
+            </View>
+          </View>
         {item.purpose ? <Text style={[s.sub, { marginBottom: 6 }]}>{item.purpose}</Text> : null}
         {item.company ? <Text style={s.sub}>{item.company} · {new Date(item.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</Text> : null}
         {item.contact ? <Text style={[s.sub, { marginTop: 2 }]}>{item.contact}</Text> : null}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Image, Platform, ScrollView, View, Text } from 'react-native'
+import { Alert, Image, Platform, ScrollView, View, Text, TouchableOpacity } from 'react-native'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import {
@@ -169,7 +169,17 @@ export default function VisitDetail() {
       <Card style={{ padding: 16, marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <Text style={{ fontSize: 20, fontWeight: '700', color: colors.text, flex: 1 }}>{visit.title}</Text>
-          <StatusChip status={visit.status} />
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+            <TouchableOpacity
+              onPress={() => router.push({ pathname: '/visit/new', params: { editId: visit.id } })}
+              accessibilityLabel="Edit visit"
+              style={{ padding: 4 }}
+              hitSlop={16}
+            >
+              <Ionicons name="create-outline" size={22} color={colors.primary} />
+            </TouchableOpacity>
+            <StatusChip status={visit.status} />
+          </View>
         </View>
         {visit.purpose ? <Text style={{ color: colors.text, fontSize: 15, marginBottom: 8 }}>{visit.purpose}</Text> : null}
         {visit.purposeMeta && (visit.purposeMeta.productIds?.length || visit.purposeMeta.purposeOther) && (

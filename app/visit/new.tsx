@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Alert, Platform, ScrollView, TouchableOpacity, View, Text } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { ApiError, Company, createVisit, getCompanies, getProducts, Product } from '../../lib/api'
+import { ApiError, Company, createVisit, getVisit, getCompanies, getProducts, Product, updateVisit, type Visit } from '../../lib/api'
 import { Button, SelectField, MultiSelectField, s, colors, ErrorState, SkeletonList, Field, SelectFieldOption } from '../../lib/ui'
 
 const TITLE_OPTIONS: SelectFieldOption[] = [
@@ -11,9 +11,15 @@ const TITLE_OPTIONS: SelectFieldOption[] = [
   { label: 'Other', value: 'other' },
 ]
 
+function toLocalDateTime(iso: string) {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 export default function NewVisit() {
   const router = useRouter()
-  const params = useLocalSearchParams<{ title?: string; company?: string; revisit?: string }>()
+  const params = useLocalSearchParams<{ title?: string; company?: string; revisit?: string; editId?: string }>()
 
   const matchedTitle = params.title
     ? TITLE_OPTIONS.find((o) => o.value.toLowerCase() === params.title?.toLowerCase())
@@ -41,6 +47,23 @@ export default function NewVisit() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const applyVisit = useCallback((v: Visit, comps: Company[]) => {
+    const matched = TITLE_OPTIONS.find((o) => o.value.toLowerCase() === (v.title ?? '').toLowerCase())
+    if (matched) setF((p) => ({ ...p, title: matched.value }))
+    else { setF((p) => ({ ...p, title: 'other' })); setTitleOther(v.title ?? '') }
+    setWhen(v.scheduledAt ? toLocalDateTime(v.scheduledAt) : new Date(Date.now() + 3600_000).toISOString().slice(0, 16))
+    setF((p) => ({ ...p, address: v.address ?? '', contactName: v.contact ?? '' }))
+    const company = v.company ?? ''
+    if (company) {
+      if (comps.some((c) => c.name === company)) setF((p) => ({ ...p, company }))
+      else { setF((p) => ({ ...p, company: 'other' })); setCompanyOther(company) }
+    } else {
+      setF((p) => ({ ...p, company: '' }))
+    }
+    setProductIds(v.purposeMeta?.productIds ?? [])
+    setPurposeOther(v.purposeMeta?.purposeOther ?? '')
+  }, [])
+
   const loadData = useCallback(async () => {
     setLoading(true)
     setLoadError(null)
@@ -48,12 +71,16 @@ export default function NewVisit() {
       const [prods, comps] = await Promise.all([getProducts(true), getCompanies()])
       setProducts(prods)
       setCompanies(comps)
+      if (params.editId) {
+        const v = await getVisit(params.editId)
+        applyVisit(v, comps)
+      }
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : 'Failed to load data')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [params.editId, applyVisit])
 
   useEffect(() => {
     // Load products + companies on mount with force refresh to bypass cache
@@ -103,7 +130,7 @@ export default function NewVisit() {
         purposeOther.trim() ? `Other: ${purposeOther.trim()}` : null,
       ].filter(Boolean).join(', ')
 
-      await createVisit({
+      const payload = {
         title: finalTitle,
         purpose: finalPurpose,
         scheduledAt: d.toISOString(),
@@ -116,7 +143,9 @@ export default function NewVisit() {
         longitude: fix?.longitude,
         productIds: productIds.length ? productIds : undefined,
         purposeOther: purposeOther.trim() || undefined,
-      })
+      }
+      if (params.editId) await updateVisit(params.editId, payload)
+      else await createVisit(payload)
       router.back()
     } catch (e) {
       if (e instanceof ApiError && e.fieldErrors) {

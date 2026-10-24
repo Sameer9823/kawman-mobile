@@ -283,11 +283,25 @@ export const getVisits = (scope: 'today' | 'upcoming' | 'all', from?: string, to
 export const getVisit = (id: string) =>
   request<{ visit: Visit }>(`/api/mobile/visits/${id}`).then((r) => r.visit)
 
-export const createVisit = (b: {
-  title: string; purpose: string; scheduledAt: string; company?: string; contactName?: string
-  contactMobile?: string; contactEmail?: string; address?: string; latitude?: number; longitude?: number
-  productIds?: string[]; purposeOther?: string
-}) => post<{ id: string }>('/api/mobile/visits', b)
+export type VisitPayload = {
+  title: string
+  purpose: string
+  scheduledAt: string
+  company?: string
+  contactName?: string
+  contactMobile?: string
+  contactEmail?: string
+  address?: string
+  latitude?: number
+  longitude?: number
+  productIds?: string[]
+  purposeOther?: string
+}
+
+export const createVisit = (b: VisitPayload) => post<{ id: string }>('/api/mobile/visits', b)
+
+export const updateVisit = (id: string, b: VisitPayload) =>
+  request<{ ok: true }>(`/api/mobile/visits/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(b) })
 
 export const setVisitStatus = (id: string, status: VisitStatus) => post(`/api/mobile/visits/${id}/status`, { status })
 
